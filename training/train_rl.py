@@ -20,7 +20,7 @@ from pathlib import Path
 import torch
 from datasets import Dataset
 from loguru import logger
-from peft import LoraConfig, PeftModel, get_peft_model
+from peft import PeftModel
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from trl import GRPOConfig, GRPOTrainer
 
@@ -88,10 +88,13 @@ def compute_patch_reward(
         return 0.0
 
     # Count diff lines (for minimality bonus/penalty)
-    diff_lines = len([
-        l for l in diff_text.split("\n")
-        if l.startswith(("+", "-")) and not l.startswith(("---", "+++"))
-    ])
+    diff_lines = len(
+        [
+            l
+            for l in diff_text.split("\n")
+            if l.startswith(("+", "-")) and not l.startswith(("---", "+++"))
+        ]
+    )
 
     # Submit to sandbox executor
     try:
@@ -136,6 +139,7 @@ def build_reward_function(config: RLTrainingConfig):
     completions is a flat list[str] of length num_prompts * num_generations.
     The function must return one reward per completion (same flat length).
     """
+
     def reward_fn(
         prompts: list[str],
         completions: list[str],
@@ -148,7 +152,9 @@ def build_reward_function(config: RLTrainingConfig):
         for i, completion in enumerate(completions):
             # Map flat completion index back to its source prompt
             prompt_idx = i // num_generations
-            meta = metadata_list[prompt_idx % len(metadata_list)] if metadata_list else {}
+            meta = (
+                metadata_list[prompt_idx % len(metadata_list)] if metadata_list else {}
+            )
             reward = compute_patch_reward(
                 completion,
                 meta,
@@ -159,7 +165,7 @@ def build_reward_function(config: RLTrainingConfig):
 
         if rewards:
             logger.info(
-                f"Batch rewards: mean={sum(rewards)/len(rewards):.3f}, "
+                f"Batch rewards: mean={sum(rewards) / len(rewards):.3f}, "
                 f"max={max(rewards):.3f}, min={min(rewards):.3f}, "
                 f"nonzero={sum(1 for r in rewards if r > 0)}/{len(rewards)}"
             )

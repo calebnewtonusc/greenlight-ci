@@ -80,7 +80,11 @@ def format_training_example(example: dict) -> str:
     )
 
     # Build assistant response in GreenLight format
-    evidence_str = "\n".join(f"  - {e}" for e in key_evidence[:3]) if key_evidence else "  - (see log above)"
+    evidence_str = (
+        "\n".join(f"  - {e}" for e in key_evidence[:3])
+        if key_evidence
+        else "  - (see log above)"
+    )
     assistant_msg = (
         f"<classify>{failure_class} — {failure_subclass}</classify>\n"
         f"<reason>\n"
@@ -135,6 +139,7 @@ def load_training_data(config: SFTTrainingConfig) -> Dataset:
 
     # Log class distribution
     from collections import Counter
+
     class_dist = Counter(ex.get("failure_class", "UNKNOWN") for ex in examples)
     logger.info(f"Class distribution: {dict(class_dist)}")
 
@@ -159,9 +164,15 @@ def train(config: SFTTrainingConfig):
         lora_dropout=config.lora_dropout,
         bias="none",
         task_type=TaskType.CAUSAL_LM,
-        target_modules=config.lora_target_modules or [
-            "q_proj", "k_proj", "v_proj", "o_proj",
-            "gate_proj", "up_proj", "down_proj",
+        target_modules=config.lora_target_modules
+        or [
+            "q_proj",
+            "k_proj",
+            "v_proj",
+            "o_proj",
+            "gate_proj",
+            "up_proj",
+            "down_proj",
         ],
     )
     model.enable_input_require_grads()

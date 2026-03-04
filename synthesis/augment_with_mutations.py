@@ -34,41 +34,71 @@ AUGMENTED_FILE = DATA_DIR / "augmented_mutations.jsonl"
 # All versions here are real released versions.
 
 PYTHON_VERSIONS = [
-    "3.8", "3.8.18", "3.9", "3.9.18", "3.10", "3.10.13",
-    "3.11", "3.11.7", "3.12", "3.12.1",
+    "3.8",
+    "3.8.18",
+    "3.9",
+    "3.9.18",
+    "3.10",
+    "3.10.13",
+    "3.11",
+    "3.11.7",
+    "3.12",
+    "3.12.1",
 ]
 
 NODE_VERSIONS = [
-    "16", "16.20.2", "18", "18.19.0", "20", "20.10.0", "21", "21.5.0",
+    "16",
+    "16.20.2",
+    "18",
+    "18.19.0",
+    "20",
+    "20.10.0",
+    "21",
+    "21.5.0",
 ]
 
 UBUNTU_VERSIONS = [
-    "ubuntu-20.04", "ubuntu-22.04", "ubuntu-latest",
-    "ubuntu:20.04", "ubuntu:22.04",
+    "ubuntu-20.04",
+    "ubuntu-22.04",
+    "ubuntu-latest",
+    "ubuntu:20.04",
+    "ubuntu:22.04",
 ]
 
 PYTHON_BASE_IMAGES = [
-    "python:3.9-slim", "python:3.10-slim", "python:3.11-slim",
-    "python:3.9-alpine", "python:3.10-alpine", "python:3.11-alpine",
-    "python:3.9-bullseye", "python:3.10-bullseye", "python:3.11-bookworm",
+    "python:3.9-slim",
+    "python:3.10-slim",
+    "python:3.11-slim",
+    "python:3.9-alpine",
+    "python:3.10-alpine",
+    "python:3.11-alpine",
+    "python:3.9-bullseye",
+    "python:3.10-bullseye",
+    "python:3.11-bookworm",
 ]
 
 NODE_BASE_IMAGES = [
-    "node:16-slim", "node:18-slim", "node:20-slim",
-    "node:16-alpine", "node:18-alpine", "node:20-alpine",
-    "node:16-bullseye", "node:18-bullseye",
+    "node:16-slim",
+    "node:18-slim",
+    "node:20-slim",
+    "node:16-alpine",
+    "node:18-alpine",
+    "node:20-alpine",
+    "node:16-bullseye",
+    "node:18-bullseye",
 ]
 
 # Common package version patterns for mutation
 PACKAGE_VERSION_PATTERNS = {
-    "major.minor.patch": re.compile(r'(\d+)\.(\d+)\.(\d+)'),
-    "major.minor": re.compile(r'(\d+)\.(\d+)(?!\.\d)'),
-    "range_gte": re.compile(r'>=(\d+\.\d+)'),
-    "range_caret": re.compile(r'\^(\d+\.\d+\.\d+)'),
-    "range_tilde": re.compile(r'~(\d+\.\d+\.\d+)'),
+    "major.minor.patch": re.compile(r"(\d+)\.(\d+)\.(\d+)"),
+    "major.minor": re.compile(r"(\d+)\.(\d+)(?!\.\d)"),
+    "range_gte": re.compile(r">=(\d+\.\d+)"),
+    "range_caret": re.compile(r"\^(\d+\.\d+\.\d+)"),
+    "range_tilde": re.compile(r"~(\d+\.\d+\.\d+)"),
 }
 
 # ─── Mutation strategies ───────────────────────────────────────────────────────
+
 
 def deterministic_rng(content: str, mutation_index: int) -> random.Random:
     """Create a deterministic RNG seeded by content hash + mutation index."""
@@ -80,7 +110,7 @@ def deterministic_rng(content: str, mutation_index: int) -> random.Random:
 
 def mutate_python_version(log: str, rng: random.Random) -> tuple[str, str]:
     """Mutate Python version references in a log."""
-    python_ver_pattern = re.compile(r'python(\s+|\-|:)([23]\.\d+(?:\.\d+)?)', re.I)
+    python_ver_pattern = re.compile(r"python(\s+|\-|:)([23]\.\d+(?:\.\d+)?)", re.I)
     matches = list(python_ver_pattern.finditer(log))
     if not matches:
         return log, ""
@@ -90,36 +120,41 @@ def mutate_python_version(log: str, rng: random.Random) -> tuple[str, str]:
     old_version = match.group(2)
     new_version = rng.choice([v for v in PYTHON_VERSIONS if v != old_version])
 
-    mutated = log[:match.start(2)] + new_version + log[match.end(2):]
+    mutated = log[: match.start(2)] + new_version + log[match.end(2) :]
     description = f"Python version changed from {old_version} to {new_version}"
     return mutated, description
 
 
 def mutate_node_version(log: str, rng: random.Random) -> tuple[str, str]:
     """Mutate Node.js version references in a log."""
-    node_ver_pattern = re.compile(r'node(\s+|\-|:)(v?1[46-9]|2[01])\.\d+(?:\.\d+)?', re.I)
+    node_ver_pattern = re.compile(
+        r"node(\s+|\-|:)(v?1[46-9]|2[01])\.\d+(?:\.\d+)?", re.I
+    )
     matches = list(node_ver_pattern.finditer(log))
     if not matches:
         return log, ""
 
     match = rng.choice(matches)
     old_version = match.group(2)
-    new_version = rng.choice([v for v in NODE_VERSIONS if not v.startswith(old_version)])
+    new_version = rng.choice(
+        [v for v in NODE_VERSIONS if not v.startswith(old_version)]
+    )
 
-    mutated = log[:match.start(2)] + new_version + log[match.end(2):]
+    mutated = log[: match.start(2)] + new_version + log[match.end(2) :]
     description = f"Node.js version changed from {old_version} to {new_version}"
     return mutated, description
 
 
-def mutate_package_version(log: str, package_name: str, rng: random.Random) -> tuple[str, str]:
+def mutate_package_version(
+    log: str, package_name: str, rng: random.Random
+) -> tuple[str, str]:
     """
     Mutate a specific package's version number in a log.
     Uses minor/patch version bumps for realistic mutations.
     """
     # Pattern: package_name==X.Y.Z or package_name>=X.Y or package_name: X.Y.Z
     pkg_pattern = re.compile(
-        re.escape(package_name) + r'[=<>^~\s:]+(\d+)\.(\d+)\.(\d+)',
-        re.I
+        re.escape(package_name) + r"[=<>^~\s:]+(\d+)\.(\d+)\.(\d+)", re.I
     )
     match = pkg_pattern.search(log)
     if not match:
@@ -140,14 +175,16 @@ def mutate_package_version(log: str, package_name: str, rng: random.Random) -> t
         new_major = major + 1
         new_version = f"{new_major}.0.0"
 
-    mutated = log[:match.start(1)] + new_version + log[match.end(3):]
-    description = f"{package_name} version changed from {old_version_str} to {new_version}"
+    mutated = log[: match.start(1)] + new_version + log[match.end(3) :]
+    description = (
+        f"{package_name} version changed from {old_version_str} to {new_version}"
+    )
     return mutated, description
 
 
 def mutate_runner_version(log: str, rng: random.Random) -> tuple[str, str]:
     """Mutate GitHub Actions runner / Ubuntu version references."""
-    runner_pattern = re.compile(r'ubuntu-(\d+\.\d+|latest)', re.I)
+    runner_pattern = re.compile(r"ubuntu-(\d+\.\d+|latest)", re.I)
     matches = list(runner_pattern.finditer(log))
     if not matches:
         return log, ""
@@ -163,7 +200,7 @@ def mutate_runner_version(log: str, rng: random.Random) -> tuple[str, str]:
 
 def mutate_docker_image(log: str, rng: random.Random) -> tuple[str, str]:
     """Mutate Docker base image tags in Dockerfile snippets."""
-    from_pattern = re.compile(r'FROM\s+(python|node):([^\s\n]+)', re.I)
+    from_pattern = re.compile(r"FROM\s+(python|node):([^\s\n]+)", re.I)
     match = from_pattern.search(log)
     if not match:
         return log, ""
@@ -179,14 +216,16 @@ def mutate_docker_image(log: str, rng: random.Random) -> tuple[str, str]:
     if new_image == old_tag:
         return log, ""
 
-    mutated = log[:match.start(1)] + new_image + log[match.end(2):]
+    mutated = log[: match.start(1)] + new_image + log[match.end(2) :]
     description = f"Docker base image changed from {old_tag} to {new_image}"
     return mutated, description
 
 
 def mutate_env_var_name(log: str, rng: random.Random) -> tuple[str, str]:
     """Mutate environment variable names to simulate missing/renamed secrets."""
-    env_pattern = re.compile(r'\$\{\{?\s*secrets\.(\w+)\s*\}\}?|\$(\w+_KEY|\w+_TOKEN|\w+_SECRET)')
+    env_pattern = re.compile(
+        r"\$\{\{?\s*secrets\.(\w+)\s*\}\}?|\$(\w+_KEY|\w+_TOKEN|\w+_SECRET)"
+    )
     matches = list(env_pattern.finditer(log))
     if not matches:
         return log, ""
@@ -240,10 +279,10 @@ def apply_mutation(
         "mutation_strategy": strategy_name,
         "mutation_description": description,
         "original_record_id": (
-            record.get("pipeline_id") or
-            record.get("build_id") or
-            record.get("pr_number") or
-            hashlib.sha256(original_log[:100].encode()).hexdigest()[:12]
+            record.get("pipeline_id")
+            or record.get("build_id")
+            or record.get("pr_number")
+            or hashlib.sha256(original_log[:100].encode()).hexdigest()[:12]
         ),
         "mutation_index": mutation_index,
     }
@@ -279,14 +318,27 @@ def main():
     parser = argparse.ArgumentParser(
         description="Generate synthetic CI failure variants via deterministic mutations"
     )
-    parser.add_argument("--input", type=Path, default=DATA_DIR,
-                        help="Directory containing failure log JSONL files")
-    parser.add_argument("--mutations-per-record", type=int, default=3,
-                        help="Number of mutations to generate per source record")
-    parser.add_argument("--dry-run", action="store_true",
-                        help="Print sample mutations without saving")
-    parser.add_argument("--strategies", type=str, default=None,
-                        help="Comma-separated strategy names (default: all)")
+    parser.add_argument(
+        "--input",
+        type=Path,
+        default=DATA_DIR,
+        help="Directory containing failure log JSONL files",
+    )
+    parser.add_argument(
+        "--mutations-per-record",
+        type=int,
+        default=3,
+        help="Number of mutations to generate per source record",
+    )
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Print sample mutations without saving"
+    )
+    parser.add_argument(
+        "--strategies",
+        type=str,
+        default=None,
+        help="Comma-separated strategy names (default: all)",
+    )
     args = parser.parse_args()
 
     # Select mutation strategies
@@ -296,7 +348,7 @@ def main():
     else:
         strategies = MUTATION_STRATEGIES
 
-    print(f"=== CI MUTATION AUGMENTATION ===")
+    print("=== CI MUTATION AUGMENTATION ===")
     print(f"Strategies: {[s[0] for s in strategies]}")
     print(f"Mutations per record: {args.mutations_per_record}")
 
@@ -321,7 +373,9 @@ def main():
         return
 
     print(f"\nTotal source records: {len(all_records)}")
-    print(f"Generating up to {len(all_records) * args.mutations_per_record} mutations...")
+    print(
+        f"Generating up to {len(all_records) * args.mutations_per_record} mutations..."
+    )
 
     total_generated = 0
     batch = []
@@ -342,8 +396,12 @@ def main():
                 if args.dry_run and total_generated <= 3:
                     print(f"\n  [DRY RUN] Strategy: {strategy_name}")
                     print(f"  Description: {mutated['mutation_description']}")
-                    print(f"  Original (first 100 chars): {record.get('ci_log', '')[:100]}")
-                    print(f"  Mutated  (first 100 chars): {mutated.get('ci_log', '')[:100]}")
+                    print(
+                        f"  Original (first 100 chars): {record.get('ci_log', '')[:100]}"
+                    )
+                    print(
+                        f"  Mutated  (first 100 chars): {mutated.get('ci_log', '')[:100]}"
+                    )
 
         # Save in batches
         if len(batch) >= 1000 and not args.dry_run:
@@ -354,7 +412,7 @@ def main():
     if batch and not args.dry_run:
         save_records(batch)
 
-    print(f"\n=== SUMMARY ===")
+    print("\n=== SUMMARY ===")
     print(f"Source records: {len(all_records)}")
     print(f"Mutations generated: {total_generated}")
     if not args.dry_run:

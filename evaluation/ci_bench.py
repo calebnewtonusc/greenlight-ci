@@ -28,6 +28,7 @@ from core.failure_taxonomy import FailureClass, FailureSubClass
 @dataclass
 class CIBenchCase:
     """A single CIBench evaluation case."""
+
     id: str
     repo: str
     language: str
@@ -42,6 +43,7 @@ class CIBenchCase:
 @dataclass
 class CIBenchResult:
     """Result for a single CIBench case."""
+
     case_id: str
     failure_class: FailureClass
     predicted_class: str
@@ -56,6 +58,7 @@ class CIBenchResult:
 @dataclass
 class CIBenchSummary:
     """Aggregated CIBench evaluation results."""
+
     total_cases: int
     classification_accuracy: float
     fix_application_rate: float
@@ -238,7 +241,7 @@ def run_inference(model, tokenizer, case: CIBenchCase) -> str:
         )
 
     generated = tokenizer.decode(
-        outputs[0][inputs["input_ids"].shape[1]:], skip_special_tokens=True
+        outputs[0][inputs["input_ids"].shape[1] :], skip_special_tokens=True
     )
     return generated
 
@@ -249,7 +252,9 @@ def evaluate_result(case: CIBenchCase, generated: str, latency: float) -> CIBenc
     classify_match = re.search(r"<classify>(.*?)</classify>", generated, re.DOTALL)
     predicted_class = "UNKNOWN"
     if classify_match:
-        predicted_class = classify_match.group(1).strip().split("—")[0].strip().split()[0]
+        predicted_class = (
+            classify_match.group(1).strip().split("—")[0].strip().split()[0]
+        )
 
     correct_classification = predicted_class == case.failure_class.value
 
@@ -259,21 +264,29 @@ def evaluate_result(case: CIBenchCase, generated: str, latency: float) -> CIBenc
 
     # Check if fix applies cleanly (heuristic: valid unified diff format)
     fix_applies = (
-        "---" in generated_fix
-        and "+++" in generated_fix
-        and len(generated_fix) > 20
+        "---" in generated_fix and "+++" in generated_fix and len(generated_fix) > 20
     )
 
     # Minimality check: generated diff should be <=1.5x the ground truth diff size
-    gt_lines = len([
-        l for l in case.correct_fix_diff.split("\n")
-        if l.startswith(("+", "-")) and not l.startswith(("---", "+++"))
-    ])
-    gen_lines = len([
-        l for l in generated_fix.split("\n")
-        if l.startswith(("+", "-")) and not l.startswith(("---", "+++"))
-    ])
-    is_minimal = gen_lines <= max(gt_lines * 1.5, gt_lines + 5) if gt_lines > 0 else gen_lines <= 15
+    gt_lines = len(
+        [
+            l
+            for l in case.correct_fix_diff.split("\n")
+            if l.startswith(("+", "-")) and not l.startswith(("---", "+++"))
+        ]
+    )
+    gen_lines = len(
+        [
+            l
+            for l in generated_fix.split("\n")
+            if l.startswith(("+", "-")) and not l.startswith(("---", "+++"))
+        ]
+    )
+    is_minimal = (
+        gen_lines <= max(gt_lines * 1.5, gt_lines + 5)
+        if gt_lines > 0
+        else gen_lines <= 15
+    )
 
     return CIBenchResult(
         case_id=case.id,
@@ -307,8 +320,12 @@ def summarize_results(results: list[CIBenchResult]) -> CIBenchSummary:
         n = len(cls_results)
         per_class[cls] = {
             "total": n,
-            "classification_accuracy": sum(1 for r in cls_results if r.correct_classification) / n,
-            "fix_application_rate": sum(1 for r in cls_results if r.fix_applies_cleanly) / n,
+            "classification_accuracy": sum(
+                1 for r in cls_results if r.correct_classification
+            )
+            / n,
+            "fix_application_rate": sum(1 for r in cls_results if r.fix_applies_cleanly)
+            / n,
             "fix_minimality_rate": sum(1 for r in cls_results if r.fix_is_minimal) / n,
         }
 
@@ -328,8 +345,14 @@ def summarize_results(results: list[CIBenchResult]) -> CIBenchSummary:
         n = len(lang_results)
         per_language[lang] = {
             "total": n,
-            "classification_accuracy": sum(1 for r in lang_results if r.correct_classification) / n,
-            "fix_application_rate": sum(1 for r in lang_results if r.fix_applies_cleanly) / n,
+            "classification_accuracy": sum(
+                1 for r in lang_results if r.correct_classification
+            )
+            / n,
+            "fix_application_rate": sum(
+                1 for r in lang_results if r.fix_applies_cleanly
+            )
+            / n,
         }
 
     return CIBenchSummary(
@@ -349,10 +372,18 @@ app = typer.Typer()
 
 @app.command()
 def main(
-    model_path: str = typer.Option("./checkpoints/greenlight-final", help="Path to model/adapter"),
-    cases_dir: Path = typer.Option(Path("data/ci_bench"), help="Directory with CIBench case JSON files"),
-    failure_class: str = typer.Option(None, help="Only evaluate specific class: FLAKY|DEP_DRIFT|ENV|LOGIC"),
-    output_json: Path = typer.Option(Path("results/ci_bench_results.json"), help="Results output file"),
+    model_path: str = typer.Option(
+        "./checkpoints/greenlight-final", help="Path to model/adapter"
+    ),
+    cases_dir: Path = typer.Option(
+        Path("data/ci_bench"), help="Directory with CIBench case JSON files"
+    ),
+    failure_class: str = typer.Option(
+        None, help="Only evaluate specific class: FLAKY|DEP_DRIFT|ENV|LOGIC"
+    ),
+    output_json: Path = typer.Option(
+        Path("results/ci_bench_results.json"), help="Results output file"
+    ),
     max_cases: int = typer.Option(200, help="Maximum cases to evaluate"),
 ):
     """Run CIBench evaluation on GreenLight CI model."""
@@ -369,7 +400,7 @@ def main(
 
     results = []
     for i, case in enumerate(cases):
-        logger.info(f"[{i+1}/{len(cases)}] {case.id} ({case.failure_class.value})")
+        logger.info(f"[{i + 1}/{len(cases)}] {case.id} ({case.failure_class.value})")
         start = time.time()
         generated = run_inference(model, tokenizer, case)
         latency = time.time() - start
@@ -384,9 +415,9 @@ def main(
 
     summary = summarize_results(results)
 
-    logger.info("\n" + "="*60)
+    logger.info("\n" + "=" * 60)
     logger.info("CIBench Results")
-    logger.info("="*60)
+    logger.info("=" * 60)
     logger.info(f"Total cases: {summary.total_cases}")
     logger.info(f"Classification accuracy: {summary.classification_accuracy:.1%}")
     logger.info(f"Fix application rate:    {summary.fix_application_rate:.1%}")

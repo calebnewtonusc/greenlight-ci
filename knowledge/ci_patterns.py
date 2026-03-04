@@ -14,12 +14,13 @@ from typing import Optional
 @dataclass
 class KnownFailurePattern:
     """A known CI failure pattern with canonical fix template."""
+
     name: str
     failure_class: str
     failure_subclass: str
     signatures: list[str]  # Log substrings that identify this pattern
-    languages: list[str]   # Applicable languages
-    fix_template: str      # Template for the fix (with {VERSION}, {PACKAGE} etc.)
+    languages: list[str]  # Applicable languages
+    fix_template: str  # Template for the fix (with {VERSION}, {PACKAGE} etc.)
     description: str
 
 
@@ -150,8 +151,7 @@ def find_matching_patterns(
             continue
 
         match_count = sum(
-            1 for sig in pattern.signatures
-            if sig.lower() in log_text.lower()
+            1 for sig in pattern.signatures if sig.lower() in log_text.lower()
         )
         if match_count > 0:
             matches.append((match_count, pattern))

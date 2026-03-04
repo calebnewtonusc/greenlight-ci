@@ -11,6 +11,7 @@ Usage:
 
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import asyncio
@@ -18,14 +19,13 @@ import json
 import os
 import random
 from pathlib import Path
-from typing import Optional
 
 import httpx
 import typer
 from loguru import logger
 
-from synthesis.prompts import FAILURE_SYNTHESIS_SYSTEM_PROMPT, PATCH_QUALITY_SYSTEM_PROMPT
-from core.failure_taxonomy import FailureClass, FailureSubClass
+from synthesis.prompts import FAILURE_SYNTHESIS_SYSTEM_PROMPT
+from core.failure_taxonomy import FailureSubClass
 
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 VLLM_URLS = os.environ.get("VLLM_URLS", "http://localhost:8001").split(",")
@@ -68,13 +68,22 @@ SYNTHESIS_TARGETS = {
 
 LANGUAGES = ["python", "javascript", "go", "java", "ruby", "rust"]
 REPO_TYPES = [
-    "web_framework", "data_library", "cli_tool", "database_orm",
-    "authentication_service", "api_client", "testing_framework",
-    "build_tool", "monitoring", "message_queue",
+    "web_framework",
+    "data_library",
+    "cli_tool",
+    "database_orm",
+    "authentication_service",
+    "api_client",
+    "testing_framework",
+    "build_tool",
+    "monitoring",
+    "message_queue",
 ]
 
 
-def make_synthesis_prompt(subclass: FailureSubClass, language: str, repo_type: str) -> str:
+def make_synthesis_prompt(
+    subclass: FailureSubClass, language: str, repo_type: str
+) -> str:
     """Build a user prompt for synthesizing a specific failure scenario."""
     return (
         f"Generate a realistic CI failure scenario with these specifications:\n"
@@ -134,12 +143,11 @@ async def synthesize_one(
         if text.startswith("{"):
             data = json.loads(text)
         else:
-            import re
             start = text.find("{")
             end = text.rfind("}")
             if start == -1 or end == -1 or end <= start:
                 return None
-            data = json.loads(text[start:end + 1])
+            data = json.loads(text[start : end + 1])
 
         # Validate required fields
         required = ["failure_class", "failure_subclass", "ci_log", "fix_diff"]
@@ -182,7 +190,13 @@ def score_pair_quality(record: dict) -> float:
     if "---" not in fix_diff or "+++" not in fix_diff:
         score -= 0.2  # Not a valid unified diff
 
-    diff_lines = len([l for l in fix_diff.split("\n") if l.startswith(("+", "-")) and not l.startswith(("---", "+++"))])
+    diff_lines = len(
+        [
+            l
+            for l in fix_diff.split("\n")
+            if l.startswith(("+", "-")) and not l.startswith(("---", "+++"))
+        ]
+    )
     if diff_lines > 100:
         score -= 0.3  # Suspiciously large diff for a CI fix
     if diff_lines == 0:
@@ -211,12 +225,15 @@ async def run_synthesis(
     aclient = None
     if backend == "claude":
         from anthropic import AsyncAnthropic
+
         aclient = AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
 
     async with httpx.AsyncClient() as client:
         tasks = []
         for subclass in FailureSubClass:
-            target = min(pairs_per_subclass, SYNTHESIS_TARGETS.get(subclass, pairs_per_subclass))
+            target = min(
+                pairs_per_subclass, SYNTHESIS_TARGETS.get(subclass, pairs_per_subclass)
+            )
             for _ in range(target):
                 language = random.choice(LANGUAGES)
                 repo_type = random.choice(REPO_TYPES)
@@ -224,18 +241,26 @@ async def run_synthesis(
                 tasks.append((subclass, language, repo_type, vllm_url))
 
         random.shuffle(tasks)
-        logger.info(f"Synthesizing {len(tasks)} pairs across {len(FailureSubClass)} sub-classes")
+        logger.info(
+            f"Synthesizing {len(tasks)} pairs across {len(FailureSubClass)} sub-classes"
+        )
 
         with open(output_file, "a") as f:
+
             async def synthesize_with_sem(sc, lang, rt, url):
                 async with semaphore:
-                    return await synthesize_one(client, sc, lang, rt, backend, url, aclient)
+                    return await synthesize_one(
+                        client, sc, lang, rt, backend, url, aclient
+                    )
 
             batch_size = concurrency * 4
             for i in range(0, len(tasks), batch_size):
-                batch = tasks[i:i + batch_size]
+                batch = tasks[i : i + batch_size]
                 results = await asyncio.gather(
-                    *[synthesize_with_sem(sc, lang, rt, url) for sc, lang, rt, url in batch]
+                    *[
+                        synthesize_with_sem(sc, lang, rt, url)
+                        for sc, lang, rt, url in batch
+                    ]
                 )
                 for result in results:
                     if result is None:
@@ -263,6 +288,7 @@ def run_quality_filter(input_dir: Path, output_file: Path, min_quality: float):
     Merge all classified pairs, apply quality filter, and produce final training dataset.
     """
     from datasketch import MinHash, MinHashLSH
+
     output_file.parent.mkdir(parents=True, exist_ok=True)
 
     all_records = []
@@ -306,11 +332,15 @@ def run_quality_filter(input_dir: Path, output_file: Path, min_quality: float):
                     deduped.append(rec)
                 except ValueError:
                     # Duplicate record_id already inserted — log and skip
-                    logger.warning(f"Duplicate record id skipped during LSH insert: {record_id!r}")
+                    logger.warning(
+                        f"Duplicate record id skipped during LSH insert: {record_id!r}"
+                    )
         except Exception:
             deduped.append(rec)
 
-    logger.info(f"After deduplication: {len(deduped)} records (removed {len(all_records) - len(deduped)})")
+    logger.info(
+        f"After deduplication: {len(deduped)} records (removed {len(all_records) - len(deduped)})"
+    )
 
     # Apply quality filter
     passed = []
@@ -320,12 +350,7 @@ def run_quality_filter(input_dir: Path, output_file: Path, min_quality: float):
         has_fix = rec.get("has_fix", False)
         quality = rec.get("quality_score", score_pair_quality(rec))
 
-        if (
-            conf >= min_quality
-            and fc != "UNKNOWN"
-            and has_fix
-            and quality >= 0.6
-        ):
+        if conf >= min_quality and fc != "UNKNOWN" and has_fix and quality >= 0.6:
             rec["quality_score"] = quality
             passed.append(rec)
 
@@ -340,6 +365,7 @@ def run_quality_filter(input_dir: Path, output_file: Path, min_quality: float):
 
     # Class distribution report
     from collections import Counter
+
     class_dist = Counter(r.get("failure_class", "UNKNOWN") for r in passed)
     logger.info(f"Class distribution: {dict(class_dist)}")
 
@@ -353,10 +379,16 @@ def main(
     backend: str = typer.Option("claude", help="Backend: claude | vllm"),
     concurrency: int = typer.Option(32, help="Concurrent synthesis requests"),
     pairs_per_subclass: int = typer.Option(250, help="Target pairs per sub-class"),
-    validate_only: bool = typer.Option(False, "--validate-only", help="Only run quality filter"),
+    validate_only: bool = typer.Option(
+        False, "--validate-only", help="Only run quality filter"
+    ),
     min_quality: float = typer.Option(0.65, help="Minimum quality score"),
-    input_dir: Path = typer.Option(Path("data/classified"), help="Input dir for validate-only mode"),
-    final_output: Path = typer.Option(Path("data/training/ci_repair_pairs.jsonl"), help="Final merged output"),
+    input_dir: Path = typer.Option(
+        Path("data/classified"), help="Input dir for validate-only mode"
+    ),
+    final_output: Path = typer.Option(
+        Path("data/training/ci_repair_pairs.jsonl"), help="Final merged output"
+    ),
 ):
     """Bulk synthesize and quality-filter CI failure→fix training pairs."""
     if validate_only:

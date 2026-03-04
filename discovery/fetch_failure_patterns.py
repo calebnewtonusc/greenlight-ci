@@ -14,7 +14,6 @@ import asyncio
 import json
 import os
 from pathlib import Path
-from typing import Optional
 
 import aiohttp
 import typer
@@ -31,31 +30,69 @@ GITHUB_API = "https://api.github.com"
 # Curated list of high-quality open source repos per language
 CURATED_REPOS = {
     "python": [
-        "django/django", "pallets/flask", "tiangolo/fastapi", "pandas-dev/pandas",
-        "scikit-learn/scikit-learn", "numpy/numpy", "psf/requests", "sqlalchemy/sqlalchemy",
-        "pytest-dev/pytest", "python/cpython", "celery/celery", "encode/httpx",
-        "pydantic/pydantic", "huggingface/transformers", "aio-libs/aiohttp",
+        "django/django",
+        "pallets/flask",
+        "tiangolo/fastapi",
+        "pandas-dev/pandas",
+        "scikit-learn/scikit-learn",
+        "numpy/numpy",
+        "psf/requests",
+        "sqlalchemy/sqlalchemy",
+        "pytest-dev/pytest",
+        "python/cpython",
+        "celery/celery",
+        "encode/httpx",
+        "pydantic/pydantic",
+        "huggingface/transformers",
+        "aio-libs/aiohttp",
     ],
     "javascript": [
-        "facebook/react", "vuejs/vue", "expressjs/express", "webpack/webpack",
-        "jestjs/jest", "eslint/eslint", "nodejs/node", "vitejs/vite",
-        "prettier/prettier", "babel/babel", "axios/axios", "lodash/lodash",
+        "facebook/react",
+        "vuejs/vue",
+        "expressjs/express",
+        "webpack/webpack",
+        "jestjs/jest",
+        "eslint/eslint",
+        "nodejs/node",
+        "vitejs/vite",
+        "prettier/prettier",
+        "babel/babel",
+        "axios/axios",
+        "lodash/lodash",
     ],
     "go": [
-        "kubernetes/kubernetes", "moby/moby", "hashicorp/terraform", "gin-gonic/gin",
-        "spf13/cobra", "go-chi/chi", "gofiber/fiber", "grpc/grpc-go",
+        "kubernetes/kubernetes",
+        "moby/moby",
+        "hashicorp/terraform",
+        "gin-gonic/gin",
+        "spf13/cobra",
+        "go-chi/chi",
+        "gofiber/fiber",
+        "grpc/grpc-go",
     ],
     "java": [
-        "spring-projects/spring-boot", "FasterXML/jackson-databind",
-        "google/guava", "netty/netty", "apache/kafka", "elastic/elasticsearch",
+        "spring-projects/spring-boot",
+        "FasterXML/jackson-databind",
+        "google/guava",
+        "netty/netty",
+        "apache/kafka",
+        "elastic/elasticsearch",
     ],
     "ruby": [
-        "rails/rails", "heartcombo/devise", "rspec/rspec-core",
-        "rubocop/rubocop", "Homebrew/brew", "jekyll/jekyll",
+        "rails/rails",
+        "heartcombo/devise",
+        "rspec/rspec-core",
+        "rubocop/rubocop",
+        "Homebrew/brew",
+        "jekyll/jekyll",
     ],
     "rust": [
-        "tokio-rs/tokio", "serde-rs/serde", "clap-rs/clap",
-        "actix/actix-web", "rust-lang/rust", "hyperium/hyper",
+        "tokio-rs/tokio",
+        "serde-rs/serde",
+        "clap-rs/clap",
+        "actix/actix-web",
+        "rust-lang/rust",
+        "hyperium/hyper",
     ],
 }
 
@@ -65,11 +102,14 @@ async def fetch_json(
 ) -> dict | list | None:
     """Fetch from GitHub API with retry logic."""
     import time
+
     for attempt in range(3):
         try:
             async with session.get(url, headers=HEADERS, params=params) as resp:
                 if resp.status == 403:
-                    reset_at = int(resp.headers.get("X-RateLimit-Reset", time.time() + 60))
+                    reset_at = int(
+                        resp.headers.get("X-RateLimit-Reset", time.time() + 60)
+                    )
                     wait = max(reset_at - time.time(), 1)
                     logger.debug(f"Rate limited, waiting {wait:.0f}s")
                     await asyncio.sleep(wait)
@@ -77,7 +117,7 @@ async def fetch_json(
                 if resp.status == 200:
                     return await resp.json()
                 return None
-        except Exception as e:
+        except Exception:
             await asyncio.sleep(2**attempt)
     return None
 
@@ -247,7 +287,9 @@ async def main_async(workers: int, output_dir: Path, env_mode: bool):
     semaphore = asyncio.Semaphore(workers)
     connector = aiohttp.TCPConnector(limit=workers * 2)
 
-    async def process_with_sem(session: aiohttp.ClientSession, repo: str, lang: str) -> int:
+    async def process_with_sem(
+        session: aiohttp.ClientSession, repo: str, lang: str
+    ) -> int:
         async with semaphore:
             try:
                 return await collect_repo_failure_chains(
@@ -271,7 +313,9 @@ app = typer.Typer()
 def main(
     workers: int = typer.Option(20, help="Concurrent workers"),
     output: Path = typer.Option(Path("data/raw/ci_history"), help="Output directory"),
-    env_mode: bool = typer.Option(False, "--env-mode", help="Focus on env/Dockerfile failures"),
+    env_mode: bool = typer.Option(
+        False, "--env-mode", help="Focus on env/Dockerfile failures"
+    ),
 ):
     """Collect CI failure→fix chains from curated open source repositories."""
     if not GITHUB_TOKEN:

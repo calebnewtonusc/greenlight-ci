@@ -14,11 +14,12 @@ import re
 
 class FailureClass(str, Enum):
     """Primary CI failure classification (8 classes)."""
+
     FLAKY = "FLAKY"
     DEP_DRIFT = "DEP_DRIFT"
     ENV = "ENV"
     LOGIC = "LOGIC"
-    SECURITY_AUDIT = "SECURITY_AUDIT"    # Security scanner / audit failures
+    SECURITY_AUDIT = "SECURITY_AUDIT"  # Security scanner / audit failures
     LINT_FORMATTING = "LINT_FORMATTING"  # Linting and code formatting failures
     BUILD_COMPILATION = "BUILD_COMPILATION"  # Compilation / build system failures
     UNKNOWN = "UNKNOWN"
@@ -26,6 +27,7 @@ class FailureClass(str, Enum):
 
 class FailureSubClass(str, Enum):
     """28-class CI failure sub-classification."""
+
     # FLAKY
     FLAKY_RACE_CONDITION = "1a_race_condition"
     FLAKY_EXTERNAL_DEP = "1b_external_dependency"
@@ -72,6 +74,7 @@ class FailureSubClass(str, Enum):
 @dataclass
 class FailureSignal:
     """A detected signal in a CI log that suggests a failure class."""
+
     failure_class: FailureClass
     failure_subclass: FailureSubClass
     confidence: float
@@ -83,6 +86,7 @@ class FailureSignal:
 @dataclass
 class CIFailure:
     """Structured representation of a CI failure."""
+
     repo: str
     language: str
     ci_platform: str  # github_actions | circleci | jenkins
@@ -102,96 +106,240 @@ class CIFailure:
 # and serve as features for the model's context.
 
 FLAKY_PATTERNS = [
-    (re.compile(r"(timeout|timed out|connection reset|connection refused)", re.I),
-     FailureSubClass.FLAKY_EXTERNAL_DEP, 0.7),
-    (re.compile(r"(race condition|data race|concurrent|deadlock)", re.I),
-     FailureSubClass.FLAKY_RACE_CONDITION, 0.8),
-    (re.compile(r"(out of memory|oom|disk full|no space left)", re.I),
-     FailureSubClass.FLAKY_RESOURCE, 0.8),
-    (re.compile(r"(port \d+ already in use|address already in use)", re.I),
-     FailureSubClass.FLAKY_RESOURCE, 0.7),
-    (re.compile(r"(test.*order|ordering.*test|setUp.*failed|fixtures)", re.I),
-     FailureSubClass.FLAKY_TEST_ORDERING, 0.5),
+    (
+        re.compile(r"(timeout|timed out|connection reset|connection refused)", re.I),
+        FailureSubClass.FLAKY_EXTERNAL_DEP,
+        0.7,
+    ),
+    (
+        re.compile(r"(race condition|data race|concurrent|deadlock)", re.I),
+        FailureSubClass.FLAKY_RACE_CONDITION,
+        0.8,
+    ),
+    (
+        re.compile(r"(out of memory|oom|disk full|no space left)", re.I),
+        FailureSubClass.FLAKY_RESOURCE,
+        0.8,
+    ),
+    (
+        re.compile(r"(port \d+ already in use|address already in use)", re.I),
+        FailureSubClass.FLAKY_RESOURCE,
+        0.7,
+    ),
+    (
+        re.compile(r"(test.*order|ordering.*test|setUp.*failed|fixtures)", re.I),
+        FailureSubClass.FLAKY_TEST_ORDERING,
+        0.5,
+    ),
 ]
 
 DEP_PATTERNS = [
-    (re.compile(r"(ImportError|ModuleNotFoundError|cannot import name)", re.I),
-     FailureSubClass.DEP_DIRECT_BREAKING, 0.6),
-    (re.compile(r"(conflicting dependencies|dependency conflict|incompatible)", re.I),
-     FailureSubClass.DEP_TRANSITIVE_CONFLICT, 0.8),
-    (re.compile(r"(npm ERR!|yarn error|package-lock.json)", re.I),
-     FailureSubClass.DEP_LOCKFILE_STALE, 0.6),
-    (re.compile(r"(poetry.lock|Pipfile.lock|Gemfile.lock|go.sum).*out of sync", re.I),
-     FailureSubClass.DEP_LOCKFILE_STALE, 0.85),
-    (re.compile(r"(python [\d.]+ is not supported|requires python >=)", re.I),
-     FailureSubClass.DEP_BUILD_TOOL, 0.8),
-    (re.compile(r"(DeprecationWarning.*removed in|API removed|deprecated.*will be removed)", re.I),
-     FailureSubClass.DEP_DIRECT_BREAKING, 0.75),
+    (
+        re.compile(r"(ImportError|ModuleNotFoundError|cannot import name)", re.I),
+        FailureSubClass.DEP_DIRECT_BREAKING,
+        0.6,
+    ),
+    (
+        re.compile(
+            r"(conflicting dependencies|dependency conflict|incompatible)", re.I
+        ),
+        FailureSubClass.DEP_TRANSITIVE_CONFLICT,
+        0.8,
+    ),
+    (
+        re.compile(r"(npm ERR!|yarn error|package-lock.json)", re.I),
+        FailureSubClass.DEP_LOCKFILE_STALE,
+        0.6,
+    ),
+    (
+        re.compile(
+            r"(poetry.lock|Pipfile.lock|Gemfile.lock|go.sum).*out of sync", re.I
+        ),
+        FailureSubClass.DEP_LOCKFILE_STALE,
+        0.85,
+    ),
+    (
+        re.compile(r"(python [\d.]+ is not supported|requires python >=)", re.I),
+        FailureSubClass.DEP_BUILD_TOOL,
+        0.8,
+    ),
+    (
+        re.compile(
+            r"(DeprecationWarning.*removed in|API removed|deprecated.*will be removed)",
+            re.I,
+        ),
+        FailureSubClass.DEP_DIRECT_BREAKING,
+        0.75,
+    ),
 ]
 
 ENV_PATTERNS = [
-    (re.compile(r"(unable to find image|image not found|manifest unknown)", re.I),
-     FailureSubClass.ENV_BASE_IMAGE, 0.9),
-    (re.compile(r"(apt-get.*No such file|Package.*has no installation candidate)", re.I),
-     FailureSubClass.ENV_MISSING_SYSTEM_DEP, 0.85),
-    (re.compile(r"(E: Unable to locate package|dpkg: error)", re.I),
-     FailureSubClass.ENV_MISSING_SYSTEM_DEP, 0.85),
-    (re.compile(r"(Error: \$\{secrets\.|secret.*not found|env.*undefined)", re.I),
-     FailureSubClass.ENV_SECRET_MISSING, 0.8),
-    (re.compile(r"(ubuntu-[\d]+.*deprecated|runner.*not available)", re.I),
-     FailureSubClass.ENV_RUNNER_CHANGE, 0.8),
-    (re.compile(r"(setup-python.*Node.js|actions/checkout.*version)", re.I),
-     FailureSubClass.ENV_RUNNER_CHANGE, 0.6),
+    (
+        re.compile(r"(unable to find image|image not found|manifest unknown)", re.I),
+        FailureSubClass.ENV_BASE_IMAGE,
+        0.9,
+    ),
+    (
+        re.compile(
+            r"(apt-get.*No such file|Package.*has no installation candidate)", re.I
+        ),
+        FailureSubClass.ENV_MISSING_SYSTEM_DEP,
+        0.85,
+    ),
+    (
+        re.compile(r"(E: Unable to locate package|dpkg: error)", re.I),
+        FailureSubClass.ENV_MISSING_SYSTEM_DEP,
+        0.85,
+    ),
+    (
+        re.compile(r"(Error: \$\{secrets\.|secret.*not found|env.*undefined)", re.I),
+        FailureSubClass.ENV_SECRET_MISSING,
+        0.8,
+    ),
+    (
+        re.compile(r"(ubuntu-[\d]+.*deprecated|runner.*not available)", re.I),
+        FailureSubClass.ENV_RUNNER_CHANGE,
+        0.8,
+    ),
+    (
+        re.compile(r"(setup-python.*Node.js|actions/checkout.*version)", re.I),
+        FailureSubClass.ENV_RUNNER_CHANGE,
+        0.6,
+    ),
 ]
 
 LOGIC_PATTERNS = [
-    (re.compile(r"(AssertionError|assert.*!=|Expected.*Got)", re.I),
-     FailureSubClass.LOGIC_TEST_EXPECTATION, 0.6),
-    (re.compile(r"(TypeError.*argument|TypeError.*keyword|unexpected keyword argument)", re.I),
-     FailureSubClass.LOGIC_API_CONTRACT, 0.75),
-    (re.compile(r"(OperationalError|ProgrammingError|column.*does not exist|table.*doesn't exist)", re.I),
-     FailureSubClass.LOGIC_SCHEMA_MISMATCH, 0.8),
-    (re.compile(r"(from.*import.*cannot.*import|no module named)", re.I),
-     FailureSubClass.LOGIC_IMPORT_ERROR, 0.7),
-    (re.compile(r"(AttributeError.*has no attribute|object has no attribute)", re.I),
-     FailureSubClass.LOGIC_API_CONTRACT, 0.7),
+    (
+        re.compile(r"(AssertionError|assert.*!=|Expected.*Got)", re.I),
+        FailureSubClass.LOGIC_TEST_EXPECTATION,
+        0.6,
+    ),
+    (
+        re.compile(
+            r"(TypeError.*argument|TypeError.*keyword|unexpected keyword argument)",
+            re.I,
+        ),
+        FailureSubClass.LOGIC_API_CONTRACT,
+        0.75,
+    ),
+    (
+        re.compile(
+            r"(OperationalError|ProgrammingError|column.*does not exist|table.*doesn't exist)",
+            re.I,
+        ),
+        FailureSubClass.LOGIC_SCHEMA_MISMATCH,
+        0.8,
+    ),
+    (
+        re.compile(r"(from.*import.*cannot.*import|no module named)", re.I),
+        FailureSubClass.LOGIC_IMPORT_ERROR,
+        0.7,
+    ),
+    (
+        re.compile(r"(AttributeError.*has no attribute|object has no attribute)", re.I),
+        FailureSubClass.LOGIC_API_CONTRACT,
+        0.7,
+    ),
 ]
 
 SECURITY_PATTERNS = [
-    (re.compile(r'(vulnerability|CVE-\d{4}-\d+|GHSA-|audit\s+found|critical\s+severity)', re.I),
-     FailureSubClass.SECURITY_VULN_FOUND, 0.85),
-    (re.compile(r'(license\s+violation|incompatible\s+license|GPL\s+conflict|AGPL)', re.I),
-     FailureSubClass.SECURITY_LICENSE_VIOLATION, 0.80),
-    (re.compile(r'(secret.*detected|token.*exposed|credential.*leak|trufflehog|gitleaks)', re.I),
-     FailureSubClass.SECURITY_SECRET_LEAK, 0.90),
-    (re.compile(r'(sbom.*mismatch|sbom.*failed|cyclonedx.*error)', re.I),
-     FailureSubClass.SECURITY_SBOM_MISMATCH, 0.80),
+    (
+        re.compile(
+            r"(vulnerability|CVE-\d{4}-\d+|GHSA-|audit\s+found|critical\s+severity)",
+            re.I,
+        ),
+        FailureSubClass.SECURITY_VULN_FOUND,
+        0.85,
+    ),
+    (
+        re.compile(
+            r"(license\s+violation|incompatible\s+license|GPL\s+conflict|AGPL)", re.I
+        ),
+        FailureSubClass.SECURITY_LICENSE_VIOLATION,
+        0.80,
+    ),
+    (
+        re.compile(
+            r"(secret.*detected|token.*exposed|credential.*leak|trufflehog|gitleaks)",
+            re.I,
+        ),
+        FailureSubClass.SECURITY_SECRET_LEAK,
+        0.90,
+    ),
+    (
+        re.compile(r"(sbom.*mismatch|sbom.*failed|cyclonedx.*error)", re.I),
+        FailureSubClass.SECURITY_SBOM_MISMATCH,
+        0.80,
+    ),
 ]
 
 LINT_PATTERNS = [
-    (re.compile(r'(flake8|pylint|eslint|rubocop|golint|checkstyle).*error', re.I),
-     FailureSubClass.LINT_STYLE_VIOLATION, 0.85),
-    (re.compile(r'(mypy|pytype|flow.*error|tsc.*error|type.*error)', re.I),
-     FailureSubClass.LINT_TYPE_ERROR, 0.85),
-    (re.compile(r'(F401|unused\s+import|unused\s+variable|W0611)', re.I),
-     FailureSubClass.LINT_UNUSED_IMPORT, 0.80),
-    (re.compile(r'(cyclomatic\s+complexity|too\s+complex|C901|function.*too\s+long)', re.I),
-     FailureSubClass.LINT_COMPLEXITY, 0.75),
-    (re.compile(r'(black.*would\s+reformat|prettier.*failed|gofmt.*diff)', re.I),
-     FailureSubClass.LINT_STYLE_VIOLATION, 0.90),
+    (
+        re.compile(r"(flake8|pylint|eslint|rubocop|golint|checkstyle).*error", re.I),
+        FailureSubClass.LINT_STYLE_VIOLATION,
+        0.85,
+    ),
+    (
+        re.compile(r"(mypy|pytype|flow.*error|tsc.*error|type.*error)", re.I),
+        FailureSubClass.LINT_TYPE_ERROR,
+        0.85,
+    ),
+    (
+        re.compile(r"(F401|unused\s+import|unused\s+variable|W0611)", re.I),
+        FailureSubClass.LINT_UNUSED_IMPORT,
+        0.80,
+    ),
+    (
+        re.compile(
+            r"(cyclomatic\s+complexity|too\s+complex|C901|function.*too\s+long)", re.I
+        ),
+        FailureSubClass.LINT_COMPLEXITY,
+        0.75,
+    ),
+    (
+        re.compile(r"(black.*would\s+reformat|prettier.*failed|gofmt.*diff)", re.I),
+        FailureSubClass.LINT_STYLE_VIOLATION,
+        0.90,
+    ),
 ]
 
 BUILD_PATTERNS = [
-    (re.compile(r'(compilation.*failed|cannot\s+compile|undefined\s+reference|linker.*error)', re.I),
-     FailureSubClass.BUILD_COMPILE_ERROR, 0.90),
-    (re.compile(r'(could\s+not\s+find\s+artifact|missing.*dist|no\s+such\s+file.*build)', re.I),
-     FailureSubClass.BUILD_MISSING_ARTIFACT, 0.80),
-    (re.compile(r'(cache\s+miss|invalid\s+cache|stale\s+cache|cache\s+expired)', re.I),
-     FailureSubClass.BUILD_CACHE_INVALID, 0.70),
-    (re.compile(r'(gradle\s+version|maven\s+version|cmake.*version|make.*version).*incompatible', re.I),
-     FailureSubClass.BUILD_TOOL_INCOMPATIBLE, 0.80),
-    (re.compile(r'(SyntaxError|IndentationError|invalid\s+syntax).*build', re.I),
-     FailureSubClass.BUILD_COMPILE_ERROR, 0.75),
+    (
+        re.compile(
+            r"(compilation.*failed|cannot\s+compile|undefined\s+reference|linker.*error)",
+            re.I,
+        ),
+        FailureSubClass.BUILD_COMPILE_ERROR,
+        0.90,
+    ),
+    (
+        re.compile(
+            r"(could\s+not\s+find\s+artifact|missing.*dist|no\s+such\s+file.*build)",
+            re.I,
+        ),
+        FailureSubClass.BUILD_MISSING_ARTIFACT,
+        0.80,
+    ),
+    (
+        re.compile(
+            r"(cache\s+miss|invalid\s+cache|stale\s+cache|cache\s+expired)", re.I
+        ),
+        FailureSubClass.BUILD_CACHE_INVALID,
+        0.70,
+    ),
+    (
+        re.compile(
+            r"(gradle\s+version|maven\s+version|cmake.*version|make.*version).*incompatible",
+            re.I,
+        ),
+        FailureSubClass.BUILD_TOOL_INCOMPATIBLE,
+        0.80,
+    ),
+    (
+        re.compile(r"(SyntaxError|IndentationError|invalid\s+syntax).*build", re.I),
+        FailureSubClass.BUILD_COMPILE_ERROR,
+        0.75,
+    ),
 ]
 
 ALL_PATTERNS = [
@@ -219,12 +367,14 @@ def heuristic_classify(log: str) -> list[FailureSignal]:
             if matches:
                 # Boost confidence if pattern matches multiple times
                 confidence = min(base_confidence + 0.05 * (len(matches) - 1), 0.95)
-                signals.append(FailureSignal(
-                    failure_class=failure_class,
-                    failure_subclass=subclass,
-                    confidence=confidence,
-                    evidence=f"Pattern '{pattern.pattern}' matched {len(matches)} times: {matches[:3]}",
-                ))
+                signals.append(
+                    FailureSignal(
+                        failure_class=failure_class,
+                        failure_subclass=subclass,
+                        confidence=confidence,
+                        evidence=f"Pattern '{pattern.pattern}' matched {len(matches)} times: {matches[:3]}",
+                    )
+                )
 
     signals.sort(key=lambda s: s.confidence, reverse=True)
     return signals
@@ -314,56 +464,58 @@ FIX_STRATEGY = {
 }
 
 
-FIX_STRATEGY.update({
-    FailureSubClass.SECURITY_VULN_FOUND: (
-        "Run `npm audit fix`, `pip-audit --fix`, or upgrade the flagged package to the patched version. "
-        "Check the CVE details to verify exploitability before suppressing."
-    ),
-    FailureSubClass.SECURITY_LICENSE_VIOLATION: (
-        "Replace the offending package with a license-compatible alternative. "
-        "Add it to the license allowlist if business approval exists."
-    ),
-    FailureSubClass.SECURITY_SECRET_LEAK: (
-        "Immediately rotate the exposed credential. Remove the secret from git history "
-        "using `git filter-repo`. Add the pattern to `.gitignore` and a pre-commit hook."
-    ),
-    FailureSubClass.SECURITY_SBOM_MISMATCH: (
-        "Regenerate the SBOM with `syft` or `cyclonedx-cli`. Ensure all dependencies are "
-        "declared in the manifest before regenerating."
-    ),
-    FailureSubClass.LINT_STYLE_VIOLATION: (
-        "Run the formatter locally: `black .`, `prettier --write .`, `rubocop -a`. "
-        "Add a pre-commit hook to enforce formatting before CI."
-    ),
-    FailureSubClass.LINT_TYPE_ERROR: (
-        "Fix the type annotation or add a type: ignore comment with explanation. "
-        "Run `mypy --strict` locally to find all type errors before pushing."
-    ),
-    FailureSubClass.LINT_UNUSED_IMPORT: (
-        "Remove unused imports. Use `autoflake --remove-all-unused-imports` or "
-        "your IDE's 'Optimize Imports' feature."
-    ),
-    FailureSubClass.LINT_COMPLEXITY: (
-        "Refactor the complex function into smaller helper functions. "
-        "Target cyclomatic complexity <= 10 per function."
-    ),
-    FailureSubClass.BUILD_COMPILE_ERROR: (
-        "Fix the compilation error shown in the log. Check for missing type annotations, "
-        "undefined symbols, or incompatible API changes in recent commits."
-    ),
-    FailureSubClass.BUILD_MISSING_ARTIFACT: (
-        "Add the missing build step that generates the artifact. Ensure build steps "
-        "are ordered correctly in the CI workflow."
-    ),
-    FailureSubClass.BUILD_CACHE_INVALID: (
-        "Clear the CI cache and retry. If this recurs, pin cache keys to "
-        "lockfile hashes: `hashFiles('**/package-lock.json')`."
-    ),
-    FailureSubClass.BUILD_TOOL_INCOMPATIBLE: (
-        "Pin the build tool version in CI: add `.gradle-version`, "
-        "`mvn.version` property, or equivalent. Match the version used locally."
-    ),
-})
+FIX_STRATEGY.update(
+    {
+        FailureSubClass.SECURITY_VULN_FOUND: (
+            "Run `npm audit fix`, `pip-audit --fix`, or upgrade the flagged package to the patched version. "
+            "Check the CVE details to verify exploitability before suppressing."
+        ),
+        FailureSubClass.SECURITY_LICENSE_VIOLATION: (
+            "Replace the offending package with a license-compatible alternative. "
+            "Add it to the license allowlist if business approval exists."
+        ),
+        FailureSubClass.SECURITY_SECRET_LEAK: (
+            "Immediately rotate the exposed credential. Remove the secret from git history "
+            "using `git filter-repo`. Add the pattern to `.gitignore` and a pre-commit hook."
+        ),
+        FailureSubClass.SECURITY_SBOM_MISMATCH: (
+            "Regenerate the SBOM with `syft` or `cyclonedx-cli`. Ensure all dependencies are "
+            "declared in the manifest before regenerating."
+        ),
+        FailureSubClass.LINT_STYLE_VIOLATION: (
+            "Run the formatter locally: `black .`, `prettier --write .`, `rubocop -a`. "
+            "Add a pre-commit hook to enforce formatting before CI."
+        ),
+        FailureSubClass.LINT_TYPE_ERROR: (
+            "Fix the type annotation or add a type: ignore comment with explanation. "
+            "Run `mypy --strict` locally to find all type errors before pushing."
+        ),
+        FailureSubClass.LINT_UNUSED_IMPORT: (
+            "Remove unused imports. Use `autoflake --remove-all-unused-imports` or "
+            "your IDE's 'Optimize Imports' feature."
+        ),
+        FailureSubClass.LINT_COMPLEXITY: (
+            "Refactor the complex function into smaller helper functions. "
+            "Target cyclomatic complexity <= 10 per function."
+        ),
+        FailureSubClass.BUILD_COMPILE_ERROR: (
+            "Fix the compilation error shown in the log. Check for missing type annotations, "
+            "undefined symbols, or incompatible API changes in recent commits."
+        ),
+        FailureSubClass.BUILD_MISSING_ARTIFACT: (
+            "Add the missing build step that generates the artifact. Ensure build steps "
+            "are ordered correctly in the CI workflow."
+        ),
+        FailureSubClass.BUILD_CACHE_INVALID: (
+            "Clear the CI cache and retry. If this recurs, pin cache keys to "
+            "lockfile hashes: `hashFiles('**/package-lock.json')`."
+        ),
+        FailureSubClass.BUILD_TOOL_INCOMPATIBLE: (
+            "Pin the build tool version in CI: add `.gradle-version`, "
+            "`mvn.version` property, or equivalent. Match the version used locally."
+        ),
+    }
+)
 
 
 def heuristic_classify_multilabel(log: str) -> list[FailureSignal]:
@@ -388,14 +540,19 @@ def get_primary_and_secondary_classes(
 
     top = signals[0]
     # Collect all secondary classes with confidence > 0.5
-    secondary = list({
-        s.failure_class for s in signals[1:]
-        if s.confidence >= 0.5 and s.failure_class != top.failure_class
-    })
+    secondary = list(
+        {
+            s.failure_class
+            for s in signals[1:]
+            if s.confidence >= 0.5 and s.failure_class != top.failure_class
+        }
+    )
 
     return top.failure_class, top.failure_subclass, top.confidence, secondary
 
 
 def get_fix_strategy(subclass: FailureSubClass) -> str:
     """Return the canonical fix strategy for a given failure sub-class."""
-    return FIX_STRATEGY.get(subclass, "Unknown failure sub-class. Perform manual triage.")
+    return FIX_STRATEGY.get(
+        subclass, "Unknown failure sub-class. Perform manual triage."
+    )

@@ -18,8 +18,6 @@ from loguru import logger
 
 from synthesis.prompts import (
     GREENLIGHT_SYSTEM_PROMPT,
-    DPO_RANKING_SYSTEM_PROMPT,
-    PATCH_QUALITY_SYSTEM_PROMPT,
 )
 
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
@@ -28,7 +26,10 @@ VLLM_API_KEY = os.environ.get("VLLM_API_KEY", "")
 
 # Module-level Anthropic client — created once, reused across all calls
 import anthropic as _anthropic
-_anthropic_client = _anthropic.Anthropic(api_key=ANTHROPIC_API_KEY) if ANTHROPIC_API_KEY else None
+
+_anthropic_client = (
+    _anthropic.Anthropic(api_key=ANTHROPIC_API_KEY) if ANTHROPIC_API_KEY else None
+)
 
 
 def generate_patch(record: dict, backend: str = "claude") -> str | None:
@@ -59,7 +60,12 @@ def generate_patch(record: dict, backend: str = "claude") -> str | None:
             resp = httpx.post(
                 f"{url}/v1/chat/completions",
                 headers={"Authorization": f"Bearer {VLLM_API_KEY}"},
-                json={"model": "Qwen/Qwen2.5-72B-Instruct", "messages": messages, "max_tokens": 1024, "temperature": 0.2},
+                json={
+                    "model": "Qwen/Qwen2.5-72B-Instruct",
+                    "messages": messages,
+                    "max_tokens": 1024,
+                    "temperature": 0.2,
+                },
                 timeout=90.0,
             )
             resp.raise_for_status()
@@ -148,13 +154,18 @@ def build_dpo_pairs(
                     resp = httpx.post(
                         f"{url}/v1/chat/completions",
                         headers={"Authorization": f"Bearer {VLLM_API_KEY}"},
-                        json={"model": "Qwen/Qwen2.5-72B-Instruct",
-                              "messages": [{"role": "user", "content": rejected_prompt}],
-                              "max_tokens": 512, "temperature": 0.9},
+                        json={
+                            "model": "Qwen/Qwen2.5-72B-Instruct",
+                            "messages": [{"role": "user", "content": rejected_prompt}],
+                            "max_tokens": 512,
+                            "temperature": 0.9,
+                        },
                         timeout=60.0,
                     )
                     resp.raise_for_status()
-                    rejected_fix = resp.json()["choices"][0]["message"]["content"].strip()
+                    rejected_fix = resp.json()["choices"][0]["message"][
+                        "content"
+                    ].strip()
             except Exception:
                 continue
 
@@ -186,19 +197,27 @@ app = typer.Typer()
 
 @app.command()
 def main(
-    classified_dir: Path = typer.Option(Path("data/classified"), help="Classified pairs directory"),
-    output: Path = typer.Option(Path("data/training/dpo_pairs.jsonl"), help="DPO output file"),
+    classified_dir: Path = typer.Option(
+        Path("data/classified"), help="Classified pairs directory"
+    ),
+    output: Path = typer.Option(
+        Path("data/training/dpo_pairs.jsonl"), help="DPO output file"
+    ),
     backend: str = typer.Option("claude", help="Backend: claude | vllm"),
     n_pairs: int = typer.Option(50000, help="Number of DPO pairs to build"),
     dpo_mode: bool = typer.Option(False, "--dpo-mode", help="Build DPO pairs"),
-    validate_sandbox: bool = typer.Option(False, "--validate-sandbox", help="Sandbox-validate generated patches"),
+    validate_sandbox: bool = typer.Option(
+        False, "--validate-sandbox", help="Sandbox-validate generated patches"
+    ),
 ):
     """Generate fix patches and build DPO preference pairs."""
     if dpo_mode:
         logger.info(f"Building {n_pairs} DPO preference pairs...")
         build_dpo_pairs(classified_dir, output, backend, n_pairs)
     elif validate_sandbox:
-        logger.info("Sandbox validation mode — use agents/patch_validator.py for full validation")
+        logger.info(
+            "Sandbox validation mode — use agents/patch_validator.py for full validation"
+        )
         logger.info("This flag prepares patches for sandbox validation.")
     else:
         logger.error("Specify --dpo-mode or --validate-sandbox")

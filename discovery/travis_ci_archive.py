@@ -79,13 +79,13 @@ TRAVIS_REPOS = [
 
 # ─── Error pattern for log truncation ────────────────────────────────────────
 TRAVIS_ERROR_PATTERNS = [
-    re.compile(r'(The command .+ exited with \d+)', re.I),
-    re.compile(r'(FAILED|ERROR|error:)\s+', re.I),
-    re.compile(r'Build failed', re.I),
-    re.compile(r'bundler: failed', re.I),
-    re.compile(r'rake aborted!', re.I),
-    re.compile(r'npm ERR!', re.I),
-    re.compile(r'Test failed', re.I),
+    re.compile(r"(The command .+ exited with \d+)", re.I),
+    re.compile(r"(FAILED|ERROR|error:)\s+", re.I),
+    re.compile(r"Build failed", re.I),
+    re.compile(r"bundler: failed", re.I),
+    re.compile(r"rake aborted!", re.I),
+    re.compile(r"npm ERR!", re.I),
+    re.compile(r"Test failed", re.I),
 ]
 
 
@@ -141,8 +141,8 @@ def extract_travis_error_context(log: str, max_lines: int = 80) -> str:
     lines = log.split("\n")
 
     # Remove ANSI color codes
-    ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
-    lines = [ansi_escape.sub('', line) for line in lines]
+    ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+    lines = [ansi_escape.sub("", line) for line in lines]
 
     # Find error lines
     error_indices = []
@@ -274,15 +274,22 @@ def main():
         description="Collect Travis CI failure logs for GreenLight CI training"
     )
     parser.add_argument("--token", default=os.environ.get("TRAVIS_TOKEN", ""))
-    parser.add_argument("--language", type=str, default=None,
-                        help="Filter repos by language (python, ruby, node)")
+    parser.add_argument(
+        "--language",
+        type=str,
+        default=None,
+        help="Filter repos by language (python, ruby, node)",
+    )
     parser.add_argument("--max-repos", type=int, default=200)
-    parser.add_argument("--max-builds", type=int, default=100,
-                        help="Max builds to check per repo")
+    parser.add_argument(
+        "--max-builds", type=int, default=100, help="Max builds to check per repo"
+    )
     parser.add_argument("--resume", action="store_true")
     args = parser.parse_args()
 
-    progress = load_progress() if args.resume else {"processed_repos": [], "total_pairs": 0}
+    progress = (
+        load_progress() if args.resume else {"processed_repos": [], "total_pairs": 0}
+    )
     processed_repos = set(progress.get("processed_repos", []))
     total_pairs = progress.get("total_pairs", 0)
 
@@ -290,25 +297,71 @@ def main():
     repos_to_process = TRAVIS_REPOS
     if args.language:
         lang_repos = {
-            "python": [r for r in TRAVIS_REPOS if any(
-                kw in r.lower() for kw in ["django", "flask", "request", "pip",
-                                             "sqlalchemy", "pytest", "numpy", "pandas",
-                                             "scikit", "celery", "redis", "boto",
-                                             "docker", "paramiko", "httpie", "scrapy",
-                                             "ansible"])],
-            "ruby": [r for r in TRAVIS_REPOS if any(
-                kw in r.lower() for kw in ["rails", "jekyll", "ruby", "rubocop",
-                                             "bundler", "sinatra"])],
-            "node": [r for r in TRAVIS_REPOS if any(
-                kw in r.lower() for kw in ["express", "lodash", "npm", "eslint",
-                                             "prettier", "babel", "jest", "mocha"])],
+            "python": [
+                r
+                for r in TRAVIS_REPOS
+                if any(
+                    kw in r.lower()
+                    for kw in [
+                        "django",
+                        "flask",
+                        "request",
+                        "pip",
+                        "sqlalchemy",
+                        "pytest",
+                        "numpy",
+                        "pandas",
+                        "scikit",
+                        "celery",
+                        "redis",
+                        "boto",
+                        "docker",
+                        "paramiko",
+                        "httpie",
+                        "scrapy",
+                        "ansible",
+                    ]
+                )
+            ],
+            "ruby": [
+                r
+                for r in TRAVIS_REPOS
+                if any(
+                    kw in r.lower()
+                    for kw in [
+                        "rails",
+                        "jekyll",
+                        "ruby",
+                        "rubocop",
+                        "bundler",
+                        "sinatra",
+                    ]
+                )
+            ],
+            "node": [
+                r
+                for r in TRAVIS_REPOS
+                if any(
+                    kw in r.lower()
+                    for kw in [
+                        "express",
+                        "lodash",
+                        "npm",
+                        "eslint",
+                        "prettier",
+                        "babel",
+                        "jest",
+                        "mocha",
+                    ]
+                )
+            ],
         }
         repos_to_process = lang_repos.get(args.language.lower(), TRAVIS_REPOS)
 
-    print(f"=== TRAVIS CI LOG HARVESTER ===")
+    print("=== TRAVIS CI LOG HARVESTER ===")
     print(f"Repos to process: {len(repos_to_process)}")
 
-    for slug in repos_to_process[:args.max_repos]:
+    for slug in repos_to_process[: args.max_repos]:
         if slug in processed_repos:
             continue
 
@@ -326,11 +379,13 @@ def main():
             time.sleep(0.2)
 
         processed_repos.add(slug)
-        save_progress({"processed_repos": list(processed_repos), "total_pairs": total_pairs})
+        save_progress(
+            {"processed_repos": list(processed_repos), "total_pairs": total_pairs}
+        )
         print(f"    +{pairs_found} pairs (total: {total_pairs})")
         time.sleep(0.5)
 
-    print(f"\n=== DONE ===")
+    print("\n=== DONE ===")
     print(f"Total Travis CI failure->fix pairs: {total_pairs}")
     print(f"Output: {TRAVIS_LOGS_FILE}")
 

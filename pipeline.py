@@ -12,15 +12,10 @@ Usage:
   python pipeline.py --list                   # List all stages with time estimates
 """
 
-import os
 import subprocess
-import sys
-from pathlib import Path
 
 import typer
-from loguru import logger
 from rich.console import Console
-from rich.progress import track
 from rich.table import Table
 
 console = Console()
@@ -187,7 +182,9 @@ def main(
         table.add_column("Description")
         table.add_column("Est. Hours", justify="right")
         for s in STAGES:
-            table.add_row(s["name"], s["phase"], s["description"], str(s["estimated_hours"]))
+            table.add_row(
+                s["name"], s["phase"], s["description"], str(s["estimated_hours"])
+            )
         console.print(table)
         total = sum(s["estimated_hours"] for s in STAGES)
         console.print(f"\nTotal estimated: {total:.1f} hours")
@@ -217,7 +214,9 @@ def main(
     for s in stages_to_run:
         success = run_stage(s, dry_run=dry_run)
         if not success:
-            console.print(f"\n[red bold]Pipeline failed at stage: {s['name']}[/red bold]")
+            console.print(
+                f"\n[red bold]Pipeline failed at stage: {s['name']}[/red bold]"
+            )
             console.print(f"To resume: python pipeline.py --from-stage {s['name']}")
             raise typer.Exit(1)
 

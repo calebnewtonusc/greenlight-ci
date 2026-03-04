@@ -10,12 +10,11 @@ Usage:
 """
 
 import asyncio
-import gzip
 import json
 import os
 import time
 import zipfile
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
 from typing import Optional
@@ -36,6 +35,7 @@ HEADERS = {
 @dataclass
 class FailedRun:
     """A failed CI run paired with its fix commit."""
+
     repo: str
     run_id: int
     workflow_name: str
@@ -47,14 +47,18 @@ class FailedRun:
     failure_labels: list[str]
 
 
-async def fetch_json(session: aiohttp.ClientSession, url: str, params: dict = None) -> dict | list | None:
+async def fetch_json(
+    session: aiohttp.ClientSession, url: str, params: dict = None
+) -> dict | list | None:
     """Fetch JSON from GitHub API with rate limit handling."""
     for attempt in range(3):
         try:
             async with session.get(url, headers=HEADERS, params=params) as resp:
                 if resp.status == 403:
                     # Rate limit
-                    reset_at = int(resp.headers.get("X-RateLimit-Reset", time.time() + 60))
+                    reset_at = int(
+                        resp.headers.get("X-RateLimit-Reset", time.time() + 60)
+                    )
                     wait = max(reset_at - time.time(), 1)
                     logger.warning(f"Rate limited. Waiting {wait:.0f}s...")
                     await asyncio.sleep(wait)
@@ -93,9 +97,13 @@ async def fetch_run_log(session: aiohttp.ClientSession, repo: str, run_id: int) 
                 logs = []
                 for name in zf.namelist():
                     # Prioritize test output files
-                    if any(kw in name.lower() for kw in ["test", "build", "check", "lint"]):
+                    if any(
+                        kw in name.lower() for kw in ["test", "build", "check", "lint"]
+                    ):
                         try:
-                            logs.insert(0, zf.read(name).decode("utf-8", errors="replace"))
+                            logs.insert(
+                                0, zf.read(name).decode("utf-8", errors="replace")
+                            )
                         except Exception:
                             pass
                     else:
@@ -174,10 +182,7 @@ async def find_fix_commit(
         if not runs_data:
             continue
         for run in runs_data.get("workflow_runs", []):
-            if (
-                run.get("name") == workflow_name
-                and run.get("conclusion") == "success"
-            ):
+            if run.get("name") == workflow_name and run.get("conclusion") == "success":
                 # Found the fix — get the diff
                 diff_data = await fetch_json(
                     session,
@@ -191,7 +196,9 @@ async def find_fix_commit(
                     for f in files[:10]:  # Cap at 10 files
                         patch = f.get("patch", "")
                         if patch:
-                            diff_parts.append(f"--- a/{f['filename']}\n+++ b/{f['filename']}\n{patch}")
+                            diff_parts.append(
+                                f"--- a/{f['filename']}\n+++ b/{f['filename']}\n{patch}"
+                            )
                     diff_text = "\n".join(diff_parts)
 
                 return candidate_sha, diff_text
@@ -221,9 +228,12 @@ async def process_repo(
     # In dep-drift mode, only look at Dependabot/Renovate triggered runs
     if dep_drift_mode:
         failed_runs = [
-            r for r in failed_runs
-            if any(kw in r.get("actor", {}).get("login", "").lower()
-                   for kw in ["dependabot", "renovate"])
+            r
+            for r in failed_runs
+            if any(
+                kw in r.get("actor", {}).get("login", "").lower()
+                for kw in ["dependabot", "renovate"]
+            )
         ]
 
     pairs_written = 0
@@ -240,7 +250,9 @@ async def process_repo(
             if len(log_text) < 200:  # Too short to be useful
                 continue
 
-            fix_sha, fix_diff = await find_fix_commit(session, repo, failing_sha, workflow_name)
+            fix_sha, fix_diff = await find_fix_commit(
+                session, repo, failing_sha, workflow_name
+            )
 
             record = {
                 "id": f"github_actions_{repo_slug}_{run_id}",
@@ -264,7 +276,9 @@ async def process_repo(
     return pairs_written
 
 
-async def discover_popular_repos(session: aiohttp.ClientSession, limit: int = 10000) -> list[str]:
+async def discover_popular_repos(
+    session: aiohttp.ClientSession, limit: int = 10000
+) -> list[str]:
     """Discover popular GitHub repos with active CI."""
     repos = []
     languages = ["python", "javascript", "go", "java", "ruby", "rust", "typescript"]
@@ -345,8 +359,12 @@ app = typer.Typer()
 def main(
     repos: int = typer.Option(10000, help="Number of top repositories to scan"),
     workers: int = typer.Option(30, help="Number of concurrent HTTP workers"),
-    output: Path = typer.Option(Path("data/raw/github_actions"), help="Output directory"),
-    dep_drift_mode: bool = typer.Option(False, "--dep-drift-mode", help="Only collect Dependabot/Renovate failures"),
+    output: Path = typer.Option(
+        Path("data/raw/github_actions"), help="Output directory"
+    ),
+    dep_drift_mode: bool = typer.Option(
+        False, "--dep-drift-mode", help="Only collect Dependabot/Renovate failures"
+    ),
     repo: str = typer.Option(None, help="Process a single specific repo (owner/repo)"),
 ):
     """Fetch failed GitHub Actions runs and paired fix commits."""

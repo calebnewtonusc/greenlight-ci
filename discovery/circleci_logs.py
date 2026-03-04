@@ -44,7 +44,7 @@ KNOWN_CIRCLECI_ORGS = [
     "github/nodejs",
     "github/rust-lang",
     "github/python",
-    "github/pallets",     # Flask, Click
+    "github/pallets",  # Flask, Click
     "github/celery",
     "github/redis",
     "github/elastic",
@@ -77,9 +77,9 @@ KNOWN_CIRCLECI_REPOS = [
 
 # ─── Log truncation patterns to extract useful sections ──────────────────────
 ERROR_SECTION_PATTERNS = [
-    re.compile(r'(Error|Exception|FAILED|FAILURE|error:).*', re.I),
-    re.compile(r'(npm ERR!|yarn error|pip.*error).*', re.I),
-    re.compile(r'exit code \d+', re.I),
+    re.compile(r"(Error|Exception|FAILED|FAILURE|error:).*", re.I),
+    re.compile(r"(npm ERR!|yarn error|pip.*error).*", re.I),
+    re.compile(r"exit code \d+", re.I),
 ]
 
 
@@ -88,16 +88,19 @@ def cci_get(endpoint: str, params: dict, token: str) -> dict:
     url = f"{CCI_BASE}/{endpoint}"
     if params:
         url += "?" + urllib.parse.urlencode(params)
-    req = urllib.request.Request(url, headers={
-        "Circle-Token": token,
-        "Accept": "application/json",
-        "User-Agent": "greenlight-ci-harvester/1.0",
-    })
+    req = urllib.request.Request(
+        url,
+        headers={
+            "Circle-Token": token,
+            "Accept": "application/json",
+            "User-Agent": "greenlight-ci-harvester/1.0",
+        },
+    )
     try:
         with urllib.request.urlopen(req, timeout=20) as resp:
             return json.loads(resp.read())
     except Exception as e:
-        if hasattr(e, 'code') and e.code == 429:
+        if hasattr(e, "code") and e.code == 429:
             time.sleep(10)
             return {}
         return {}
@@ -154,16 +157,20 @@ def get_job_steps(project_slug: str, job_number: int, token: str) -> list[dict]:
 
 def get_step_logs(step_url: str, token: str) -> str:
     """Download log output for a specific step."""
-    req = urllib.request.Request(step_url, headers={
-        "Circle-Token": token,
-        "User-Agent": "greenlight-ci-harvester/1.0",
-    })
+    req = urllib.request.Request(
+        step_url,
+        headers={
+            "Circle-Token": token,
+            "User-Agent": "greenlight-ci-harvester/1.0",
+        },
+    )
     try:
         with urllib.request.urlopen(req, timeout=30) as resp:
             content = resp.read()
             # CircleCI logs can be gzipped
-            if content[:2] == b'\x1f\x8b':
+            if content[:2] == b"\x1f\x8b":
                 import gzip
+
                 content = gzip.decompress(content)
             log_data = json.loads(content)
             if isinstance(log_data, list):
@@ -248,8 +255,21 @@ def find_fixing_commit(
 
     files = diff_data.get("files", [])
     # Filter to CI-relevant files
-    ci_files = [f for f in files if any(kw in f.get("filename", "") for kw in
-                [".yml", ".yaml", ".json", "Dockerfile", "requirements", "package"])]
+    ci_files = [
+        f
+        for f in files
+        if any(
+            kw in f.get("filename", "")
+            for kw in [
+                ".yml",
+                ".yaml",
+                ".json",
+                "Dockerfile",
+                "requirements",
+                "package",
+            ]
+        )
+    ]
 
     return {
         "sha": sha,
@@ -359,8 +379,12 @@ def main():
     parser.add_argument("--gh-token", default=os.environ.get("GITHUB_TOKEN", ""))
     parser.add_argument("--max-projects", type=int, default=500)
     parser.add_argument("--max-pipelines-per-project", type=int, default=50)
-    parser.add_argument("--org", type=str, default=None,
-                        help="Specific org to crawl (e.g., github/python)")
+    parser.add_argument(
+        "--org",
+        type=str,
+        default=None,
+        help="Specific org to crawl (e.g., github/python)",
+    )
     parser.add_argument("--resume", action="store_true")
     args = parser.parse_args()
 
@@ -368,7 +392,9 @@ def main():
         print("Error: set CIRCLECI_TOKEN or use --token")
         return
 
-    progress = load_progress() if args.resume else {"processed_slugs": [], "total_pairs": 0}
+    progress = (
+        load_progress() if args.resume else {"processed_slugs": [], "total_pairs": 0}
+    )
     processed_slugs = set(progress.get("processed_slugs", []))
     total_pairs = progress.get("total_pairs", 0)
 
@@ -379,11 +405,11 @@ def main():
     else:
         project_slugs.extend(KNOWN_CIRCLECI_REPOS)
 
-    print(f"=== CIRCLECI LOG HARVESTER ===")
+    print("=== CIRCLECI LOG HARVESTER ===")
     print(f"Projects to process: {len(project_slugs)}")
     print(f"Already processed: {len(processed_slugs)}")
 
-    for project_slug in project_slugs[:args.max_projects]:
+    for project_slug in project_slugs[: args.max_projects]:
         if project_slug in processed_slugs:
             continue
 
@@ -395,7 +421,9 @@ def main():
             pipelines_fetched = 0
 
             while pipelines_fetched < args.max_pipelines_per_project:
-                data = get_project_pipelines(project_slug, args.token, page_token, branch)
+                data = get_project_pipelines(
+                    project_slug, args.token, page_token, branch
+                )
                 pipelines = data.get("items", [])
                 if not pipelines:
                     break
@@ -410,8 +438,12 @@ def main():
                     time.sleep(0.1)
 
                     record = process_failed_pipeline(
-                        project_slug, pipeline, workflows,
-                        args.token, args.gh_token, branch,
+                        project_slug,
+                        pipeline,
+                        workflows,
+                        args.token,
+                        args.gh_token,
+                        branch,
                     )
                     if record:
                         save_records([record])
@@ -427,12 +459,15 @@ def main():
                 time.sleep(0.3)
 
         processed_slugs.add(project_slug)
-        progress = {"processed_slugs": list(processed_slugs), "total_pairs": total_pairs}
+        progress = {
+            "processed_slugs": list(processed_slugs),
+            "total_pairs": total_pairs,
+        }
         save_progress(progress)
         print(f"    +{pairs_found} pairs (total: {total_pairs})")
         time.sleep(0.5)
 
-    print(f"\n=== DONE ===")
+    print("\n=== DONE ===")
     print(f"Total CircleCI failure->fix pairs: {total_pairs}")
     print(f"Output: {CIRCLECI_LOGS_FILE}")
 

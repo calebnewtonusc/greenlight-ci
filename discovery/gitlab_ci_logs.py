@@ -64,12 +64,12 @@ KNOWN_GITLAB_PROJECTS = [
 
 # ─── Error extraction patterns ────────────────────────────────────────────────
 GITLAB_ERROR_PATTERNS = [
-    re.compile(r'(ERROR|FAILED|Error|error:)\s+.*', re.I),
-    re.compile(r'(Job failed|Build failed|Pipeline failed)', re.I),
-    re.compile(r'exit status \d+', re.I),
-    re.compile(r'make\[\d+\].*Error \d+', re.I),
-    re.compile(r'fatal:.*', re.I),
-    re.compile(r'FAIL\s+', re.I),
+    re.compile(r"(ERROR|FAILED|Error|error:)\s+.*", re.I),
+    re.compile(r"(Job failed|Build failed|Pipeline failed)", re.I),
+    re.compile(r"exit status \d+", re.I),
+    re.compile(r"make\[\d+\].*Error \d+", re.I),
+    re.compile(r"fatal:.*", re.I),
+    re.compile(r"FAIL\s+", re.I),
 ]
 
 
@@ -88,7 +88,7 @@ def gl_get(endpoint: str, params: dict, token: str = "") -> dict:
             data = resp.read()
             return json.loads(data)
     except Exception as e:
-        if hasattr(e, 'code') and e.code == 429:
+        if hasattr(e, "code") and e.code == 429:
             time.sleep(15)
         return {}
 
@@ -109,14 +109,16 @@ def search_public_projects(
     min_stars: int = 50,
 ) -> list[dict]:
     """Search for public GitLab projects with CI enabled."""
-    url = f"{GITLAB_BASE}/projects?" + urllib.parse.urlencode({
-        "visibility": "public",
-        "order_by": order_by,
-        "sort": "desc",
-        "with_ci_enabled": "true",
-        "page": page,
-        "per_page": per_page,
-    })
+    url = f"{GITLAB_BASE}/projects?" + urllib.parse.urlencode(
+        {
+            "visibility": "public",
+            "order_by": order_by,
+            "sort": "desc",
+            "with_ci_enabled": "true",
+            "page": page,
+            "per_page": per_page,
+        }
+    )
     headers = {"User-Agent": "greenlight-ci-harvester/1.0"}
     if token:
         headers["PRIVATE-TOKEN"] = token
@@ -211,12 +213,16 @@ def find_fixing_pipeline(
         if pipeline.get("id", 0) > failed_id:
             commit_sha = pipeline.get("sha", "")
             # Get commit message
-            commit_info = get_pipeline_commit(project_id, pipeline.get("sha", ""), token)
+            commit_info = get_pipeline_commit(
+                project_id, pipeline.get("sha", ""), token
+            )
             return {
                 "pipeline_id": pipeline.get("id"),
                 "sha": commit_sha,
                 "ref": ref,
-                "commit_message": (commit_info.get("title") or "")[:200] if commit_info else "",
+                "commit_message": (commit_info.get("title") or "")[:200]
+                if commit_info
+                else "",
                 "web_url": pipeline.get("web_url", ""),
                 "duration": pipeline.get("duration", 0),
             }
@@ -226,8 +232,8 @@ def find_fixing_pipeline(
 def extract_error_context(log: str, max_lines: int = 80) -> str:
     """Extract error context from a GitLab CI job trace."""
     # Remove ANSI codes
-    ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
-    log = ansi_escape.sub('', log)
+    ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+    log = ansi_escape.sub("", log)
     lines = log.split("\n")
 
     # Find error lines
@@ -317,13 +323,18 @@ def main():
     parser.add_argument("--token", default=os.environ.get("GITLAB_TOKEN", ""))
     parser.add_argument("--max-projects", type=int, default=500)
     parser.add_argument("--max-pipelines-per-project", type=int, default=30)
-    parser.add_argument("--discover-projects", action="store_true",
-                        help="Discover additional public projects via API search")
+    parser.add_argument(
+        "--discover-projects",
+        action="store_true",
+        help="Discover additional public projects via API search",
+    )
     parser.add_argument("--min-stars", type=int, default=50)
     parser.add_argument("--resume", action="store_true")
     args = parser.parse_args()
 
-    progress = load_progress() if args.resume else {"processed_projects": [], "total_pairs": 0}
+    progress = (
+        load_progress() if args.resume else {"processed_projects": [], "total_pairs": 0}
+    )
     processed_projects = set(progress.get("processed_projects", []))
     total_pairs = progress.get("total_pairs", 0)
 
@@ -346,10 +357,10 @@ def main():
                 break
             time.sleep(0.5)
 
-    print(f"=== GITLAB CI LOG HARVESTER ===")
+    print("=== GITLAB CI LOG HARVESTER ===")
     print(f"Projects to process: {len(projects_to_process)}")
 
-    for project in projects_to_process[:args.max_projects]:
+    for project in projects_to_process[: args.max_projects]:
         project_path = project.get("path_with_namespace", "")
         if not project_path or project_path in processed_projects:
             continue
@@ -383,11 +394,13 @@ def main():
             time.sleep(0.2)
 
         processed_projects.add(project_path)
-        save_progress({"processed_projects": list(processed_projects), "total_pairs": total_pairs})
+        save_progress(
+            {"processed_projects": list(processed_projects), "total_pairs": total_pairs}
+        )
         print(f"    +{pairs_found} pairs (total: {total_pairs})")
         time.sleep(0.5)
 
-    print(f"\n=== DONE ===")
+    print("\n=== DONE ===")
     print(f"Total GitLab CI failure->fix pairs: {total_pairs}")
     print(f"Output: {GITLAB_LOGS_FILE}")
 

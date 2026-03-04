@@ -13,8 +13,6 @@ Usage:
   python agents/ci_repair_agent.py --serve --port 8000
 """
 
-import asyncio
-import json
 import os
 import re
 import time
@@ -31,11 +29,13 @@ from loguru import logger
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from peft import PeftModel
 
-from core.failure_taxonomy import FailureClass, heuristic_classify, get_fix_strategy
+from core.failure_taxonomy import heuristic_classify
 from synthesis.prompts import GREENLIGHT_SYSTEM_PROMPT
 
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
-GREENLIGHT_MODEL_PATH = os.environ.get("GREENLIGHT_MODEL_PATH", "./checkpoints/greenlight-final")
+GREENLIGHT_MODEL_PATH = os.environ.get(
+    "GREENLIGHT_MODEL_PATH", "./checkpoints/greenlight-final"
+)
 BASE_MODEL = os.environ.get("BASE_MODEL", "Qwen/Qwen2.5-7B-Coder-Instruct")
 
 # Lazy-loaded model (singleton)
@@ -67,6 +67,7 @@ def get_model():
 @dataclass
 class RepairRequest:
     """A CI repair request."""
+
     repo: str
     run_id: int
     log_text: str
@@ -77,6 +78,7 @@ class RepairRequest:
 @dataclass
 class RepairResult:
     """The result of a CI repair attempt."""
+
     repo: str
     run_id: int
     failure_class: str
@@ -117,7 +119,11 @@ def fetch_ci_log(repo: str, run_id: int) -> tuple[str, str, str]:
         headers=headers,
         timeout=30,
     )
-    language = repo_resp.json().get("language", "unknown") if repo_resp.status_code == 200 else "unknown"
+    language = (
+        repo_resp.json().get("language", "unknown")
+        if repo_resp.status_code == 200
+        else "unknown"
+    )
 
     # Fetch log zip
     log_resp = requests.get(
@@ -179,7 +185,9 @@ def generate_repair(request: RepairRequest) -> str:
             pad_token_id=tokenizer.eos_token_id,
         )
 
-    return tokenizer.decode(outputs[0][inputs["input_ids"].shape[1]:], skip_special_tokens=True)
+    return tokenizer.decode(
+        outputs[0][inputs["input_ids"].shape[1] :], skip_special_tokens=True
+    )
 
 
 def extract_fix(response: str) -> tuple[str, str, str]:
@@ -223,7 +231,8 @@ def open_github_pr(
     branch_name = f"greenlight-ci/fix-{run_id}"
     ref_resp = requests.get(
         f"https://api.github.com/repos/{repo}/git/ref/heads/{default_branch}",
-        headers=headers, timeout=15,
+        headers=headers,
+        timeout=15,
     )
     if ref_resp.status_code != 200:
         return None
@@ -276,15 +285,22 @@ def repair(repo: str, run_id: int, open_pr: bool = True) -> RepairResult:
 
     if not log_text:
         return RepairResult(
-            repo=repo, run_id=run_id,
-            failure_class="UNKNOWN", failure_subclass="",
-            generated_response="", extracted_fix="",
-            success=False, error="Could not fetch CI log",
+            repo=repo,
+            run_id=run_id,
+            failure_class="UNKNOWN",
+            failure_subclass="",
+            generated_response="",
+            extracted_fix="",
+            success=False,
+            error="Could not fetch CI log",
         )
 
     request = RepairRequest(
-        repo=repo, run_id=run_id,
-        log_text=log_text, language=language, workflow_name=workflow_name,
+        repo=repo,
+        run_id=run_id,
+        log_text=log_text,
+        language=language,
+        workflow_name=workflow_name,
     )
 
     logger.info("Generating repair...")
@@ -294,7 +310,9 @@ def repair(repo: str, run_id: int, open_pr: bool = True) -> RepairResult:
     logger.info(f"Generation complete in {latency:.1f}s")
 
     failure_info, fix_diff, validate = extract_fix(response)
-    failure_class = failure_info.split("—")[0].strip().split()[0] if failure_info else "UNKNOWN"
+    failure_class = (
+        failure_info.split("—")[0].strip().split()[0] if failure_info else "UNKNOWN"
+    )
     failure_subclass = failure_info.split("—")[1].strip() if "—" in failure_info else ""
 
     logger.info(f"Classified as: {failure_class} — {failure_subclass}")
@@ -310,9 +328,12 @@ def repair(repo: str, run_id: int, open_pr: bool = True) -> RepairResult:
             logger.warning("Could not open PR — check GITHUB_TOKEN permissions")
 
     return RepairResult(
-        repo=repo, run_id=run_id,
-        failure_class=failure_class, failure_subclass=failure_subclass,
-        generated_response=response, extracted_fix=fix_diff,
+        repo=repo,
+        run_id=run_id,
+        failure_class=failure_class,
+        failure_subclass=failure_subclass,
+        generated_response=response,
+        extracted_fix=fix_diff,
         pr_url=pr_url,
         success=bool(fix_diff and len(fix_diff) > 20),
     )
@@ -365,12 +386,18 @@ def main(
     elif watch and repo:
         logger.info(f"Watch mode: monitoring {repo} for CI failures")
         import requests
-        headers = {"Authorization": f"Bearer {GITHUB_TOKEN}", "Accept": "application/vnd.github+json"}
+
+        headers = {
+            "Authorization": f"Bearer {GITHUB_TOKEN}",
+            "Accept": "application/vnd.github+json",
+        }
         processed = set()
         while True:
             resp = requests.get(
                 f"https://api.github.com/repos/{repo}/actions/runs",
-                headers=headers, params={"conclusion": "failure", "per_page": 10}, timeout=15,
+                headers=headers,
+                params={"conclusion": "failure", "per_page": 10},
+                timeout=15,
             )
             if resp.status_code == 200:
                 for run in resp.json().get("workflow_runs", []):

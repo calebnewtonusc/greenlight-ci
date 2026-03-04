@@ -20,7 +20,6 @@ import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 import docker
 import typer
@@ -50,6 +49,7 @@ DEFAULT_TEST_COMMANDS = {
 @dataclass
 class SandboxResult:
     """Result of a sandbox CI execution."""
+
     patch_applied: bool
     first_run_passed: bool
     second_run_passed: bool
@@ -69,6 +69,7 @@ def apply_patch_in_temp(
     Returns (success, error_message).
     """
     import shutil
+
     # Copy repo to temp dir
     shutil.copytree(repo_dir, temp_dir, dirs_exist_ok=True)
 
@@ -79,7 +80,9 @@ def apply_patch_in_temp(
     # Apply with patch command
     result = subprocess.run(
         ["patch", "-p1", "--input", str(diff_file), "--directory", temp_dir],
-        capture_output=True, text=True, timeout=30,
+        capture_output=True,
+        text=True,
+        timeout=30,
     )
     if result.returncode != 0:
         return False, result.stderr
@@ -116,7 +119,9 @@ def run_ci_in_docker(
         # Container exited 0 = tests passed
         return True, result.decode("utf-8", errors="replace")[:4096]
     except docker.errors.ContainerError as e:
-        return False, e.stderr.decode("utf-8", errors="replace")[:4096] if e.stderr else str(e)
+        return False, e.stderr.decode("utf-8", errors="replace")[
+            :4096
+        ] if e.stderr else str(e)
     except Exception as e:
         return False, str(e)
 
@@ -143,8 +148,15 @@ def execute_patch(
 
         # Clone at failing SHA
         clone_result = subprocess.run(
-            ["git", "clone", "--depth=50", f"https://github.com/{repo}.git", str(sandbox_dir)],
-            capture_output=True, timeout=120,
+            [
+                "git",
+                "clone",
+                "--depth=50",
+                f"https://github.com/{repo}.git",
+                str(sandbox_dir),
+            ],
+            capture_output=True,
+            timeout=120,
         )
         if clone_result.returncode != 0:
             logger.debug(f"Clone failed for {repo}")
@@ -162,7 +174,8 @@ def execute_patch(
         subprocess.run(
             ["git", "checkout", failing_sha],
             cwd=str(sandbox_dir),
-            capture_output=True, timeout=30,
+            capture_output=True,
+            timeout=30,
         )
 
         # Apply patch
@@ -171,10 +184,13 @@ def execute_patch(
         patch_result = subprocess.run(
             ["git", "apply", "--whitespace=fix", str(patch_file)],
             cwd=str(sandbox_dir),
-            capture_output=True, timeout=30,
+            capture_output=True,
+            timeout=30,
         )
         if patch_result.returncode != 0:
-            logger.debug(f"Patch application failed: {patch_result.stderr.decode()[:200]}")
+            logger.debug(
+                f"Patch application failed: {patch_result.stderr.decode()[:200]}"
+            )
             return SandboxResult(
                 patch_applied=False,
                 first_run_passed=False,
@@ -186,12 +202,16 @@ def execute_patch(
             )
 
         # Run CI tests
-        first_passed, first_output = run_ci_in_docker(str(sandbox_dir), language, test_command)
+        first_passed, first_output = run_ci_in_docker(
+            str(sandbox_dir), language, test_command
+        )
 
         second_passed = False
         second_output = ""
         if first_passed and stability_reruns >= 1:
-            second_passed, second_output = run_ci_in_docker(str(sandbox_dir), language, test_command)
+            second_passed, second_output = run_ci_in_docker(
+                str(sandbox_dir), language, test_command
+            )
 
         # Compute reward
         if not first_passed:
@@ -202,10 +222,13 @@ def execute_patch(
             reward = 1.0
 
         # Minimality adjustment
-        diff_lines = len([
-            l for l in diff_text.split("\n")
-            if l.startswith(("+", "-")) and not l.startswith(("---", "+++"))
-        ])
+        diff_lines = len(
+            [
+                l
+                for l in diff_text.split("\n")
+                if l.startswith(("+", "-")) and not l.startswith(("---", "+++"))
+            ]
+        )
         if reward > 0:
             if diff_lines < 10:
                 reward = min(reward + 0.1, 1.1)
@@ -304,7 +327,9 @@ def execute_endpoint(body: dict):
     if not diff or not repo:
         return {"error": "diff and repo required"}
 
-    result = execute_patch(diff, repo, failing_sha, language, test_command, stability_reruns)
+    result = execute_patch(
+        diff, repo, failing_sha, language, test_command, stability_reruns
+    )
     return {
         "patch_applied": result.patch_applied,
         "first_run_passed": result.first_run_passed,
@@ -319,11 +344,19 @@ app = typer.Typer()
 
 @app.command()
 def main(
-    sandbox_pool: int = typer.Option(None, help="Start sandbox pool REST API with N workers"),
+    sandbox_pool: int = typer.Option(
+        None, help="Start sandbox pool REST API with N workers"
+    ),
     port: int = typer.Option(8080, help="Sandbox pool port"),
-    build_rl_tasks_flag: bool = typer.Option(False, "--build-rl-tasks", help="Build RL task dataset"),
-    classified_dir: Path = typer.Option(Path("data/classified"), help="Input for --build-rl-tasks"),
-    output: Path = typer.Option(Path("data/rl/ci_sandbox_tasks.jsonl"), help="Output for --build-rl-tasks"),
+    build_rl_tasks_flag: bool = typer.Option(
+        False, "--build-rl-tasks", help="Build RL task dataset"
+    ),
+    classified_dir: Path = typer.Option(
+        Path("data/classified"), help="Input for --build-rl-tasks"
+    ),
+    output: Path = typer.Option(
+        Path("data/rl/ci_sandbox_tasks.jsonl"), help="Output for --build-rl-tasks"
+    ),
     max_tasks: int = typer.Option(10000, help="Max RL tasks to build"),
 ):
     """GreenLight CI patch validator and sandbox executor."""

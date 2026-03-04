@@ -13,16 +13,12 @@ Usage:
 import json
 import os
 from pathlib import Path
-from typing import Optional
 
 import httpx
 import typer
 from loguru import logger
 
 from core.failure_taxonomy import (
-    FailureClass,
-    FailureSubClass,
-    heuristic_classify,
     top_heuristic_class,
     get_fix_strategy,
 )
@@ -76,7 +72,7 @@ def classify_with_claude(log_text: str, heuristic_hint: str = "") -> dict | None
     user_msg = f"""CI Log (truncated to key section):
 {log_text[:8000]}
 
-Heuristic pre-classification hint: {heuristic_hint or 'none'}
+Heuristic pre-classification hint: {heuristic_hint or "none"}
 
 Classify this CI failure."""
 
@@ -93,6 +89,7 @@ Classify this CI failure."""
             return json.loads(text)
         # Try to find JSON block
         import re
+
         match = re.search(r"\{.*\}", text, re.DOTALL)
         if match:
             return json.loads(match.group())
@@ -107,7 +104,7 @@ def classify_with_vllm(log_text: str, heuristic_hint: str = "") -> dict | None:
     user_msg = f"""CI Log:
 {log_text[:8000]}
 
-Heuristic hint: {heuristic_hint or 'none'}
+Heuristic hint: {heuristic_hint or "none"}
 
 Classify this CI failure."""
 
@@ -133,6 +130,7 @@ Classify this CI failure."""
         if text.startswith("{"):
             return json.loads(text)
         import re
+
         match = re.search(r"\{.*\}", text, re.DOTALL)
         if match:
             return json.loads(match.group())
@@ -252,7 +250,9 @@ def process_directory(
             for rec in classified:
                 f.write(json.dumps(rec) + "\n")
 
-        logger.info(f"  {input_file.name}: {len(classified)}/{len(records)} passed quality filter")
+        logger.info(
+            f"  {input_file.name}: {len(classified)}/{len(records)} passed quality filter"
+        )
 
     logger.info(
         f"Classification complete: {total_passed} passed, {total_skipped} skipped "
@@ -265,10 +265,16 @@ app = typer.Typer()
 
 @app.command()
 def main(
-    input_dir: Path = typer.Option(Path("data/raw"), help="Input directory with raw JSONL files"),
-    output_dir: Path = typer.Option(Path("data/classified"), help="Output directory for classified pairs"),
+    input_dir: Path = typer.Option(
+        Path("data/raw"), help="Input directory with raw JSONL files"
+    ),
+    output_dir: Path = typer.Option(
+        Path("data/classified"), help="Output directory for classified pairs"
+    ),
     backend: str = typer.Option("claude", help="LLM backend: claude | vllm"),
-    min_confidence: float = typer.Option(0.65, help="Minimum classification confidence to keep pair"),
+    min_confidence: float = typer.Option(
+        0.65, help="Minimum classification confidence to keep pair"
+    ),
     batch_size: int = typer.Option(50, help="Batch size for LLM calls"),
 ):
     """Classify CI failure logs using heuristics + LLM deep analysis."""

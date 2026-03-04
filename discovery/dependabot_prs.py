@@ -35,18 +35,24 @@ GH_GRAPHQL = "https://api.github.com/graphql"
 
 # ─── Dependabot PR title patterns ────────────────────────────────────────────
 DEPENDABOT_PATTERNS = [
-    re.compile(r'Bump (.+?) from ([\d.]+) to ([\d.]+)', re.I),
-    re.compile(r'Update (.+?) requirement from ([\d.>=<^~]+) to ([\d.>=<^~]+)', re.I),
-    re.compile(r'chore\(deps\): bump (.+?) from ([\d.]+) to ([\d.]+)', re.I),
-    re.compile(r'chore\(deps-dev\): bump (.+?) from ([\d.]+) to ([\d.]+)', re.I),
-    re.compile(r'Update (.+?) to ([\d.]+)', re.I),
-    re.compile(r'Upgrade (.+?) from ([\d.]+) to ([\d.]+)', re.I),
+    re.compile(r"Bump (.+?) from ([\d.]+) to ([\d.]+)", re.I),
+    re.compile(r"Update (.+?) requirement from ([\d.>=<^~]+) to ([\d.>=<^~]+)", re.I),
+    re.compile(r"chore\(deps\): bump (.+?) from ([\d.]+) to ([\d.]+)", re.I),
+    re.compile(r"chore\(deps-dev\): bump (.+?) from ([\d.]+) to ([\d.]+)", re.I),
+    re.compile(r"Update (.+?) to ([\d.]+)", re.I),
+    re.compile(r"Upgrade (.+?) from ([\d.]+) to ([\d.]+)", re.I),
 ]
 
 # ─── Ecosystem detection from PR title and files ─────────────────────────────
 ECOSYSTEM_INDICATORS = {
     "npm": ["package.json", "package-lock.json", "yarn.lock", "node_modules"],
-    "pip": ["requirements.txt", "Pipfile", "Pipfile.lock", "setup.py", "pyproject.toml"],
+    "pip": [
+        "requirements.txt",
+        "Pipfile",
+        "Pipfile.lock",
+        "setup.py",
+        "pyproject.toml",
+    ],
     "maven": ["pom.xml", "build.gradle", "build.gradle.kts"],
     "cargo": ["Cargo.toml", "Cargo.lock"],
     "bundler": ["Gemfile", "Gemfile.lock"],
@@ -60,8 +66,8 @@ DEPENDABOT_SEARCH_QUERIES = [
     "is:pr author:app/dependabot label:dependencies is:merged",
     "is:pr author:app/dependabot is:merged updated:>2024-01-01",
     "is:pr author:app/renovate is:merged label:dependencies",
-    "is:pr title:\"Bump\" author:app/dependabot is:merged",
-    "is:pr title:\"chore(deps)\" is:merged",
+    'is:pr title:"Bump" author:app/dependabot is:merged',
+    'is:pr title:"chore(deps)" is:merged',
     "is:pr author:app/dependabot is:closed is:unmerged",  # Failed PRs = failing dep update
 ]
 
@@ -107,7 +113,7 @@ def gh_get(endpoint: str, params: dict, token: str) -> dict:
         with urllib.request.urlopen(req, timeout=20) as resp:
             return json.loads(resp.read())
     except Exception as e:
-        if hasattr(e, 'code') and e.code in (403, 429):
+        if hasattr(e, "code") and e.code in (403, 429):
             time.sleep(10)
         return {}
 
@@ -177,13 +183,17 @@ def get_pr_ci_status(owner: str, repo: str, pr_number: int, token: str) -> dict:
     if not head_sha:
         return {"status": "unknown", "checks": []}
 
-    checks_data = gh_get(f"repos/{owner}/{repo}/commits/{head_sha}/check-runs", {}, token)
+    checks_data = gh_get(
+        f"repos/{owner}/{repo}/commits/{head_sha}/check-runs", {}, token
+    )
     check_runs = checks_data.get("check_runs", [])
 
     # Summarize CI results
     total = len(check_runs)
     passed = sum(1 for c in check_runs if c.get("conclusion") == "success")
-    failed = sum(1 for c in check_runs if c.get("conclusion") in ("failure", "timed_out"))
+    failed = sum(
+        1 for c in check_runs if c.get("conclusion") in ("failure", "timed_out")
+    )
 
     overall_status = "unknown"
     if total > 0:
@@ -221,14 +231,20 @@ def get_pr_file_diffs(owner: str, repo: str, pr_number: int, token: str) -> list
     dep_files = []
     for f in files:
         fname = f.get("filename", "")
-        if any(ind in fname.lower() for inds in ECOSYSTEM_INDICATORS.values() for ind in inds):
-            dep_files.append({
-                "filename": fname,
-                "status": f.get("status"),
-                "additions": f.get("additions", 0),
-                "deletions": f.get("deletions", 0),
-                "patch": (f.get("patch") or "")[:2000],
-            })
+        if any(
+            ind in fname.lower()
+            for inds in ECOSYSTEM_INDICATORS.values()
+            for ind in inds
+        ):
+            dep_files.append(
+                {
+                    "filename": fname,
+                    "status": f.get("status"),
+                    "additions": f.get("additions", 0),
+                    "deletions": f.get("deletions", 0),
+                    "patch": (f.get("patch") or "")[:2000],
+                }
+            )
     return dep_files
 
 
@@ -312,9 +328,15 @@ def get_repo_dependabot_prs(
 
         # Filter to bot PRs
         bot_prs = [
-            pr for pr in prs
-            if (pr.get("user") or {}).get("login", "").lower() in
-               ("dependabot[bot]", "dependabot-preview[bot]", "renovate[bot]", "renovate")
+            pr
+            for pr in prs
+            if (pr.get("user") or {}).get("login", "").lower()
+            in (
+                "dependabot[bot]",
+                "dependabot-preview[bot]",
+                "renovate[bot]",
+                "renovate",
+            )
         ]
         all_prs.extend(bot_prs)
 
@@ -348,8 +370,12 @@ def main():
         description="Collect Dependabot/Renovate PRs for DEP_DRIFT training data"
     )
     parser.add_argument("--token", default=os.environ.get("GITHUB_TOKEN", ""))
-    parser.add_argument("--ecosystem", type=str, default=None,
-                        help="Filter by ecosystem: npm, pip, cargo, maven, bundler, go")
+    parser.add_argument(
+        "--ecosystem",
+        type=str,
+        default=None,
+        help="Filter by ecosystem: npm, pip, cargo, maven, bundler, go",
+    )
     parser.add_argument("--min-stars", type=int, default=10)
     parser.add_argument("--max-repos", type=int, default=200)
     parser.add_argument("--max-prs-per-repo", type=int, default=100)
@@ -360,14 +386,16 @@ def main():
         print("Error: set GITHUB_TOKEN or use --token")
         return
 
-    progress = load_progress() if args.resume else {"processed_repos": [], "total_records": 0}
+    progress = (
+        load_progress() if args.resume else {"processed_repos": [], "total_records": 0}
+    )
     processed_repos = set(progress.get("processed_repos", []))
     total_records = progress.get("total_records", 0)
 
-    print(f"=== DEPENDABOT/RENOVATE PR HARVESTER ===")
+    print("=== DEPENDABOT/RENOVATE PR HARVESTER ===")
     print(f"Processing {len(DEPENDABOT_HEAVY_REPOS)} known repos")
 
-    for full_name in DEPENDABOT_HEAVY_REPOS[:args.max_repos]:
+    for full_name in DEPENDABOT_HEAVY_REPOS[: args.max_repos]:
         if full_name in processed_repos:
             continue
 
@@ -392,11 +420,13 @@ def main():
         save_records(records)
         total_records += len(records)
         processed_repos.add(full_name)
-        save_progress({"processed_repos": list(processed_repos), "total_records": total_records})
+        save_progress(
+            {"processed_repos": list(processed_repos), "total_records": total_records}
+        )
         print(f"    +{len(records)} dep bump records (total: {total_records})")
         time.sleep(0.5)
 
-    print(f"\n=== DONE ===")
+    print("\n=== DONE ===")
     print(f"Total Dependabot/Renovate PR records: {total_records}")
     print(f"Output: {DEPENDABOT_FILE}")
 

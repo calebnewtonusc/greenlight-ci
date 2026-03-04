@@ -71,12 +71,14 @@ def load_dpo_dataset(path: str) -> Dataset:
             if chosen == rejected:
                 continue
 
-            examples.append({
-                "prompt": f"<|im_start|>system\n{GREENLIGHT_SYSTEM_PROMPT}<|im_end|>\n"
-                          f"<|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant\n",
-                "chosen": chosen + "<|im_end|>",
-                "rejected": rejected + "<|im_end|>",
-            })
+            examples.append(
+                {
+                    "prompt": f"<|im_start|>system\n{GREENLIGHT_SYSTEM_PROMPT}<|im_end|>\n"
+                    f"<|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant\n",
+                    "chosen": chosen + "<|im_end|>",
+                    "rejected": rejected + "<|im_end|>",
+                }
+            )
 
     logger.info(f"Loaded {len(examples)} DPO preference pairs")
     return Dataset.from_list(examples)
