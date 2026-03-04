@@ -49,6 +49,21 @@ SYNTHESIS_TARGETS = {
     FailureSubClass.LOGIC_API_CONTRACT: 4000,
     FailureSubClass.LOGIC_SCHEMA_MISMATCH: 2000,
     FailureSubClass.LOGIC_IMPORT_ERROR: 2000,
+    # SECURITY_AUDIT
+    FailureSubClass.SECURITY_VULN_FOUND: 400,
+    FailureSubClass.SECURITY_LICENSE_VIOLATION: 200,
+    FailureSubClass.SECURITY_SECRET_LEAK: 200,
+    FailureSubClass.SECURITY_SBOM_MISMATCH: 100,
+    # LINT_FORMATTING
+    FailureSubClass.LINT_STYLE_VIOLATION: 400,
+    FailureSubClass.LINT_TYPE_ERROR: 300,
+    FailureSubClass.LINT_UNUSED_IMPORT: 200,
+    FailureSubClass.LINT_COMPLEXITY: 100,
+    # BUILD_COMPILATION
+    FailureSubClass.BUILD_COMPILE_ERROR: 400,
+    FailureSubClass.BUILD_MISSING_ARTIFACT: 200,
+    FailureSubClass.BUILD_CACHE_INVALID: 150,
+    FailureSubClass.BUILD_TOOL_INCOMPATIBLE: 250,
 }
 
 LANGUAGES = ["python", "javascript", "go", "java", "ruby", "rust"]

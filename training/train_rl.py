@@ -230,6 +230,7 @@ def train(config: RLTrainingConfig):
 
     logger.info(f"Loading SFT LoRA adapter from: {config.sft_adapter}")
     model = PeftModel.from_pretrained(base_model, config.sft_adapter, is_trainable=True)
+    model.enable_input_require_grads()
 
     dataset = load_rl_dataset(config.rl_tasks_path)
     logger.info(f"RL dataset: {len(dataset)} sandbox tasks")

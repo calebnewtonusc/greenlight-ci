@@ -3,8 +3,8 @@ CIBench — GreenLight CI Evaluation Suite
 200 historical CI failures stratified across all 4 failure classes and 6 languages.
 
 Usage:
-  python evaluation/ci_bench.py --model checkpoints/greenlight-final
-  python evaluation/ci_bench.py --model checkpoints/greenlight-final --failure-class DEP_DRIFT
+  python evaluation/ci_bench.py --model-path checkpoints/greenlight-final
+  python evaluation/ci_bench.py --model-path checkpoints/greenlight-final --failure-class DEP_DRIFT
 """
 
 import json

@@ -164,6 +164,7 @@ def train(config: SFTTrainingConfig):
             "gate_proj", "up_proj", "down_proj",
         ],
     )
+    model.enable_input_require_grads()
     model = get_peft_model(model, lora_config)
     model.print_trainable_parameters()
 

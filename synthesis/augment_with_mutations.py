@@ -301,8 +301,9 @@ def main():
     print(f"Mutations per record: {args.mutations_per_record}")
 
     # Load all CI failure records
-    source_files = [
-        args.input / "github_ci_failure_logs.jsonl",
+    github_dir = args.input / "github"
+    github_files = list(github_dir.glob("*.jsonl")) if github_dir.is_dir() else []
+    source_files = github_files + [
         args.input / "circleci_failure_logs.jsonl",
         args.input / "travis_failure_logs.jsonl",
         args.input / "gitlab_failure_logs.jsonl",
@@ -341,8 +342,8 @@ def main():
                 if args.dry_run and total_generated <= 3:
                     print(f"\n  [DRY RUN] Strategy: {strategy_name}")
                     print(f"  Description: {mutated['mutation_description']}")
-                    print(f"  Original (first 100 chars): {record.get('failure_log', '')[:100]}")
-                    print(f"  Mutated  (first 100 chars): {mutated.get('failure_log', '')[:100]}")
+                    print(f"  Original (first 100 chars): {record.get('ci_log', '')[:100]}")
+                    print(f"  Mutated  (first 100 chars): {mutated.get('ci_log', '')[:100]}")
 
         # Save in batches
         if len(batch) >= 1000 and not args.dry_run:

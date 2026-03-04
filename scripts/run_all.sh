@@ -72,7 +72,7 @@ echo ""
 # Stage 4: Evaluation
 echo "[4/4] Running CIBench evaluation..."
 python evaluation/ci_bench.py \
-    --model checkpoints/greenlight-final \
+    --model-path checkpoints/greenlight-final \
     --output-json results/ci_bench_results.json
 echo "[4/4] Evaluation complete."
 echo ""
