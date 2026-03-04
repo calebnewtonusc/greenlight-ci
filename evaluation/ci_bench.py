@@ -22,7 +22,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from peft import PeftModel
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from core.failure_taxonomy import FailureClass, FailureSubClass
+from core.failure_taxonomy import FailureClass, FailureSubClass  # noqa: E402
 
 
 @dataclass
@@ -270,16 +270,16 @@ def evaluate_result(case: CIBenchCase, generated: str, latency: float) -> CIBenc
     # Minimality check: generated diff should be <=1.5x the ground truth diff size
     gt_lines = len(
         [
-            l
-            for l in case.correct_fix_diff.split("\n")
-            if l.startswith(("+", "-")) and not l.startswith(("---", "+++"))
+            line
+            for line in case.correct_fix_diff.split("\n")
+            if line.startswith(("+", "-")) and not line.startswith(("---", "+++"))
         ]
     )
     gen_lines = len(
         [
-            l
-            for l in generated_fix.split("\n")
-            if l.startswith(("+", "-")) and not l.startswith(("---", "+++"))
+            line
+            for line in generated_fix.split("\n")
+            if line.startswith(("+", "-")) and not line.startswith(("---", "+++"))
         ]
     )
     is_minimal = (

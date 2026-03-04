@@ -224,9 +224,9 @@ def execute_patch(
         # Minimality adjustment
         diff_lines = len(
             [
-                l
-                for l in diff_text.split("\n")
-                if l.startswith(("+", "-")) and not l.startswith(("---", "+++"))
+                line
+                for line in diff_text.split("\n")
+                if line.startswith(("+", "-")) and not line.startswith(("---", "+++"))
             ]
         )
         if reward > 0:
@@ -362,7 +362,7 @@ def main(
     """GreenLight CI patch validator and sandbox executor."""
     if sandbox_pool:
         logger.info(f"Starting sandbox pool on port {port} with {sandbox_pool} workers")
-        uvicorn.run(rest_app, host="0.0.0.0", port=port, workers=sandbox_pool)
+        uvicorn.run(rest_app, host="0.0.0.0", port=port, workers=sandbox_pool)  # nosec B104
     elif build_rl_tasks_flag:
         build_rl_tasks(classified_dir, output, max_tasks)
     else:

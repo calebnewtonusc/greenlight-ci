@@ -97,6 +97,8 @@ def cci_get(endpoint: str, params: dict, token: str) -> dict:
         },
     )
     try:
+        if not url.startswith("https://"):
+            raise ValueError(f"Unsafe URL scheme: {url}")
         with urllib.request.urlopen(req, timeout=20) as resp:
             return json.loads(resp.read())
     except Exception as e:
@@ -118,6 +120,8 @@ def gh_get(endpoint: str, params: dict, gh_token: str = "") -> dict:
         headers["Authorization"] = f"Bearer {gh_token}"
     req = urllib.request.Request(url, headers=headers)
     try:
+        if not url.startswith("https://"):
+            raise ValueError(f"Unsafe URL scheme: {url}")
         with urllib.request.urlopen(req, timeout=20) as resp:
             return json.loads(resp.read())
     except Exception:
@@ -165,6 +169,8 @@ def get_step_logs(step_url: str, token: str) -> str:
         },
     )
     try:
+        if not step_url.startswith("https://"):
+            raise ValueError(f"Unsafe URL scheme: {step_url}")
         with urllib.request.urlopen(req, timeout=30) as resp:
             content = resp.read()
             # CircleCI logs can be gzipped

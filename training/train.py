@@ -21,7 +21,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from trl import SFTConfig, SFTTrainer
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from synthesis.prompts import GREENLIGHT_SYSTEM_PROMPT
+from synthesis.prompts import GREENLIGHT_SYSTEM_PROMPT  # noqa: E402
 
 
 @dataclass
@@ -148,11 +148,11 @@ def load_training_data(config: SFTTrainingConfig) -> Dataset:
 
 def train(config: SFTTrainingConfig):
     logger.info(f"Loading base model: {config.base_model}")
-    tokenizer = AutoTokenizer.from_pretrained(config.base_model)
+    tokenizer = AutoTokenizer.from_pretrained(config.base_model)  # nosec B615
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "right"
 
-    model = AutoModelForCausalLM.from_pretrained(
+    model = AutoModelForCausalLM.from_pretrained(  # nosec B615
         config.base_model,
         torch_dtype=torch.bfloat16,
         use_cache=False,  # Required for gradient checkpointing

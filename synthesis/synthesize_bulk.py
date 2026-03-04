@@ -14,18 +14,18 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-import asyncio
-import json
-import os
-import random
-from pathlib import Path
+import asyncio  # noqa: E402
+import json  # noqa: E402
+import os  # noqa: E402
+import random  # noqa: E402
+from pathlib import Path  # noqa: E402
 
-import httpx
-import typer
-from loguru import logger
+import httpx  # noqa: E402
+import typer  # noqa: E402
+from loguru import logger  # noqa: E402
 
-from synthesis.prompts import FAILURE_SYNTHESIS_SYSTEM_PROMPT
-from core.failure_taxonomy import FailureSubClass
+from synthesis.prompts import FAILURE_SYNTHESIS_SYSTEM_PROMPT  # noqa: E402
+from core.failure_taxonomy import FailureSubClass  # noqa: E402
 
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 VLLM_URLS = os.environ.get("VLLM_URLS", "http://localhost:8001").split(",")
@@ -192,9 +192,9 @@ def score_pair_quality(record: dict) -> float:
 
     diff_lines = len(
         [
-            l
-            for l in fix_diff.split("\n")
-            if l.startswith(("+", "-")) and not l.startswith(("---", "+++"))
+            line
+            for line in fix_diff.split("\n")
+            if line.startswith(("+", "-")) and not line.startswith(("---", "+++"))
         ]
     )
     if diff_lines > 100:

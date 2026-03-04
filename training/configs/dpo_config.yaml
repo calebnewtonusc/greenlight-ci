@@ -1,3 +1,4 @@
+---
 # Stage 3: DPO config — GreenLight CI
 # Run: deepspeed --num_gpus=18 training/train_dpo.py
 

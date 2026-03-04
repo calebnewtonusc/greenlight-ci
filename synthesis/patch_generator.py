@@ -25,7 +25,7 @@ VLLM_URLS = os.environ.get("VLLM_URLS", "http://localhost:8001").split(",")
 VLLM_API_KEY = os.environ.get("VLLM_API_KEY", "")
 
 # Module-level Anthropic client — created once, reused across all calls
-import anthropic as _anthropic
+import anthropic as _anthropic  # noqa: E402
 
 _anthropic_client = (
     _anthropic.Anthropic(api_key=ANTHROPIC_API_KEY) if ANTHROPIC_API_KEY else None

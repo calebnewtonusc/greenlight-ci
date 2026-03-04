@@ -90,9 +90,9 @@ def compute_patch_reward(
     # Count diff lines (for minimality bonus/penalty)
     diff_lines = len(
         [
-            l
-            for l in diff_text.split("\n")
-            if l.startswith(("+", "-")) and not l.startswith(("---", "+++"))
+            line
+            for line in diff_text.split("\n")
+            if line.startswith(("+", "-")) and not line.startswith(("---", "+++"))
         ]
     )
 
@@ -226,16 +226,16 @@ def load_rl_dataset(data_path: str) -> Dataset:
 
 def train(config: RLTrainingConfig):
     logger.info(f"Loading base model: {config.base_model}")
-    base_model = AutoModelForCausalLM.from_pretrained(
+    base_model = AutoModelForCausalLM.from_pretrained(  # nosec B615
         config.base_model,
         torch_dtype=torch.bfloat16,
         use_cache=False,
     )
-    tokenizer = AutoTokenizer.from_pretrained(config.base_model)
+    tokenizer = AutoTokenizer.from_pretrained(config.base_model)  # nosec B615
     tokenizer.pad_token = tokenizer.eos_token
 
     logger.info(f"Loading SFT LoRA adapter from: {config.sft_adapter}")
-    model = PeftModel.from_pretrained(base_model, config.sft_adapter, is_trainable=True)
+    model = PeftModel.from_pretrained(base_model, config.sft_adapter, is_trainable=True)  # nosec B615
     model.enable_input_require_grads()
 
     dataset = load_rl_dataset(config.rl_tasks_path)

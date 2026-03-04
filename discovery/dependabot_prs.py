@@ -145,7 +145,7 @@ def detect_ecosystem(pr: dict, changed_files: list[dict]) -> str:
     """Detect the package ecosystem from PR context."""
     # Check PR title
     title = (pr.get("title") or "").lower()
-    labels = [l.get("name", "").lower() for l in (pr.get("labels") or [])]
+    labels = [label.get("name", "").lower() for label in (pr.get("labels") or [])]
     body = (pr.get("body") or "").lower()
 
     # Check labels first
@@ -296,7 +296,7 @@ def process_pr(
         "body_snippet": body[:500] if body else "",
         "created_at": pr.get("created_at", ""),
         "merged_at": pr.get("merged_at", ""),
-        "labels": [l.get("name") for l in (pr.get("labels") or [])],
+        "labels": [label.get("name") for label in (pr.get("labels") or [])],
         "author": (pr.get("user") or {}).get("login", ""),
     }
 

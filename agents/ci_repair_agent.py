@@ -48,14 +48,14 @@ def get_model():
     global _model, _tokenizer
     if _model is None:
         logger.info(f"Loading GreenLight CI model from {GREENLIGHT_MODEL_PATH}")
-        _tokenizer = AutoTokenizer.from_pretrained(BASE_MODEL)
+        _tokenizer = AutoTokenizer.from_pretrained(BASE_MODEL)  # nosec B615
         _tokenizer.pad_token = _tokenizer.eos_token
-        base = AutoModelForCausalLM.from_pretrained(
+        base = AutoModelForCausalLM.from_pretrained(  # nosec B615
             BASE_MODEL, torch_dtype=torch.bfloat16, device_map="auto"
         )
         model_path = Path(GREENLIGHT_MODEL_PATH)
         if model_path.exists():
-            _model = PeftModel.from_pretrained(base, str(model_path))
+            _model = PeftModel.from_pretrained(base, str(model_path))  # nosec B615
         else:
             logger.warning("No trained model found — using base model (lower quality)")
             _model = base
@@ -382,7 +382,7 @@ def main(
     """GreenLight CI repair agent."""
     if serve:
         logger.info(f"Starting GreenLight CI API server on port {port}")
-        uvicorn.run(rest_app, host="0.0.0.0", port=port)
+        uvicorn.run(rest_app, host="0.0.0.0", port=port)  # nosec B104
     elif watch and repo:
         logger.info(f"Watch mode: monitoring {repo} for CI failures")
         import requests

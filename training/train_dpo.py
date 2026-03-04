@@ -21,7 +21,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from trl import DPOConfig, DPOTrainer
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from synthesis.prompts import GREENLIGHT_SYSTEM_PROMPT
+from synthesis.prompts import GREENLIGHT_SYSTEM_PROMPT  # noqa: E402
 
 
 @dataclass
@@ -86,17 +86,17 @@ def load_dpo_dataset(path: str) -> Dataset:
 
 def train(config: DPOTrainingConfig):
     logger.info(f"Loading base model: {config.base_model}")
-    tokenizer = AutoTokenizer.from_pretrained(config.base_model)
+    tokenizer = AutoTokenizer.from_pretrained(config.base_model)  # nosec B615
     tokenizer.pad_token = tokenizer.eos_token
 
-    base_model = AutoModelForCausalLM.from_pretrained(
+    base_model = AutoModelForCausalLM.from_pretrained(  # nosec B615
         config.base_model,
         torch_dtype=torch.bfloat16,
         use_cache=False,
     )
 
     logger.info(f"Loading RL LoRA adapter from: {config.rl_adapter}")
-    model = PeftModel.from_pretrained(base_model, config.rl_adapter, is_trainable=True)
+    model = PeftModel.from_pretrained(base_model, config.rl_adapter, is_trainable=True)  # nosec B615
     model.enable_input_require_grads()
 
     dataset = load_dpo_dataset(config.dpo_pairs_path)

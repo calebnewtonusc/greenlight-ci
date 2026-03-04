@@ -300,7 +300,7 @@ async def main_async(workers: int, output_dir: Path, env_mode: bool):
                 return 0
 
     async with aiohttp.ClientSession(connector=connector) as session:
-        tasks = [process_with_sem(session, r, l) for r, l in all_repos]
+        tasks = [process_with_sem(session, r, lang) for r, lang in all_repos]
         results = await asyncio.gather(*tasks)
     total = sum(results)
     logger.info(f"Collection complete. Total failure→fix chains: {total}")
