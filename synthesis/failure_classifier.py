@@ -275,8 +275,11 @@ def main(
     if backend == "claude" and not ANTHROPIC_API_KEY:
         logger.error("ANTHROPIC_API_KEY not set for claude backend")
         raise typer.Exit(1)
-    if backend == "vllm" and not VLLM_URL:
-        logger.error("VLLM_URL not configured")
+    if backend == "vllm" and VLLM_URL == "http://localhost:8001":
+        logger.error(
+            "VLLM_URL is still the default (http://localhost:8001); "
+            "set VLLM_URLS env var to a running vLLM server"
+        )
         raise typer.Exit(1)
 
     logger.info(f"Classifying failures: {input_dir} → {output_dir} (backend={backend})")

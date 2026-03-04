@@ -401,7 +401,9 @@ def main():
                     break
 
                 for pipeline in pipelines:
-                    if pipeline.get("state") != "errored":
+                    # Accept "errored" and "created" pipeline states; workflow-level
+                    # status check in process_failed_pipeline determines actual failure.
+                    if pipeline.get("state") not in ("errored", "created"):
                         continue
 
                     workflows = get_pipeline_workflows(pipeline["id"], args.token)

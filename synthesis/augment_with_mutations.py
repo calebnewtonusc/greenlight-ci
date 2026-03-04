@@ -222,7 +222,7 @@ def apply_mutation(
     Apply a single mutation strategy to a CI failure record.
     Returns a new record with the mutated failure_log and metadata.
     """
-    original_log = record.get("failure_log", "")
+    original_log = record.get("ci_log", "")
     if not original_log:
         return None
 
@@ -235,7 +235,7 @@ def apply_mutation(
     # Create a synthetic training record
     mutated_record = {
         **record,
-        "failure_log": mutated_log,
+        "ci_log": mutated_log,
         "is_synthetic": True,
         "mutation_strategy": strategy_name,
         "mutation_description": description,

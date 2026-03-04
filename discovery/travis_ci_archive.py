@@ -206,7 +206,7 @@ def process_failed_build(
         return None
 
     build_id = build.get("id")
-    build_number = build.get("number", 0)
+    build_number = int(build.get("number", 0))
     branch = build.get("branch", {}).get("name", "main")
     commit_sha = build.get("commit", {}).get("sha", "")[:12]
     commit_message = build.get("commit", {}).get("message", "")[:200]

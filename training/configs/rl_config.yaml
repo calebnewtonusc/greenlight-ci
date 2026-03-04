@@ -25,6 +25,7 @@ reward:
 logging:
   logging_steps: 10
   save_steps: 100
+  report_to: "none"
   run_name: "greenlight-ci-grpo-v1"
 
 data:

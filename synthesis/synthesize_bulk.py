@@ -80,6 +80,7 @@ async def synthesize_one(
     repo_type: str,
     backend: str,
     vllm_url: str,
+    aclient=None,
 ) -> dict | None:
     """Synthesize a single failure→fix pair."""
     prompt = make_synthesis_prompt(subclass, language, repo_type)
@@ -105,9 +106,7 @@ async def synthesize_one(
             resp.raise_for_status()
             text = resp.json()["choices"][0]["message"]["content"].strip()
         else:
-            # Claude API (async client in async context)
-            from anthropic import AsyncAnthropic
-            aclient = AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
+            # Claude API (async client in async context — reuse shared instance)
             msg = await aclient.messages.create(
                 model="claude-haiku-4-5",
                 max_tokens=1024,
@@ -193,6 +192,12 @@ async def run_synthesis(
     total_generated = 0
     total_passed = 0
 
+    # Create the Anthropic async client once outside the synthesis loop
+    aclient = None
+    if backend == "claude":
+        from anthropic import AsyncAnthropic
+        aclient = AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
+
     async with httpx.AsyncClient() as client:
         tasks = []
         for subclass in FailureSubClass:
@@ -209,7 +214,7 @@ async def run_synthesis(
         with open(output_file, "a") as f:
             async def synthesize_with_sem(sc, lang, rt, url):
                 async with semaphore:
-                    return await synthesize_one(client, sc, lang, rt, backend, url)
+                    return await synthesize_one(client, sc, lang, rt, backend, url, aclient)
 
             batch_size = concurrency * 4
             for i in range(0, len(tasks), batch_size):
@@ -254,6 +259,10 @@ def run_quality_filter(input_dir: Path, output_file: Path, min_quality: float):
                     continue
                 try:
                     rec = json.loads(line)
+                    # Adapter: GitLab (and some Travis) records use "failure_log" key;
+                    # normalize to "ci_log" so all downstream code uses a single field name.
+                    if "ci_log" not in rec and "failure_log" in rec:
+                        rec["ci_log"] = rec["failure_log"]
                     all_records.append(rec)
                 except Exception:
                     pass
@@ -277,8 +286,12 @@ def run_quality_filter(input_dir: Path, output_file: Path, min_quality: float):
         try:
             result = lsh.query(mh)
             if not result:
-                lsh.insert(record_id, mh)
-                deduped.append(rec)
+                try:
+                    lsh.insert(record_id, mh)
+                    deduped.append(rec)
+                except ValueError:
+                    # Duplicate record_id already inserted — log and skip
+                    logger.warning(f"Duplicate record id skipped during LSH insert: {record_id!r}")
         except Exception:
             deduped.append(rec)
 

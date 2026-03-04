@@ -26,6 +26,10 @@ ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 VLLM_URLS = os.environ.get("VLLM_URLS", "http://localhost:8001").split(",")
 VLLM_API_KEY = os.environ.get("VLLM_API_KEY", "")
 
+# Module-level Anthropic client — created once, reused across all calls
+import anthropic as _anthropic
+_anthropic_client = _anthropic.Anthropic(api_key=ANTHROPIC_API_KEY) if ANTHROPIC_API_KEY else None
+
 
 def generate_patch(record: dict, backend: str = "claude") -> str | None:
     """Generate a fix patch for a classified CI failure."""
@@ -61,9 +65,7 @@ def generate_patch(record: dict, backend: str = "claude") -> str | None:
             resp.raise_for_status()
             return resp.json()["choices"][0]["message"]["content"].strip()
         else:
-            import anthropic
-            client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
-            msg = client.messages.create(
+            msg = _anthropic_client.messages.create(
                 model="claude-haiku-4-5",
                 max_tokens=1024,
                 system=GREENLIGHT_SYSTEM_PROMPT,
@@ -86,8 +88,6 @@ def build_dpo_pairs(
     - chosen: minimal, root-cause-addressing fix
     - rejected: over-engineered OR wrong-class fix OR symptom-only fix
     """
-    import anthropic
-
     all_records = []
     for f in classified_dir.rglob("*.jsonl"):
         with open(f) as fh:
@@ -133,8 +133,7 @@ def build_dpo_pairs(
 
             try:
                 if backend == "claude":
-                    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
-                    msg = client.messages.create(
+                    msg = _anthropic_client.messages.create(
                         model="claude-haiku-4-5",
                         max_tokens=512,
                         system=(

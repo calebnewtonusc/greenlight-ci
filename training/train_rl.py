@@ -133,29 +133,29 @@ def build_reward_function(config: RLTrainingConfig):
     """
     Returns a reward function compatible with TRL's GRPOTrainer.
     TRL calls: reward_fn(prompts=prompts, completions=completions, **dataset_cols)
-    completions is list[list[str]]: one inner list per prompt, each containing
-    the generated completion strings for that prompt.
+    completions is a flat list[str] of length num_prompts * num_generations.
+    The function must return one reward per completion (same flat length).
     """
     def reward_fn(
         prompts: list[str],
-        completions: list[list[str]],
+        completions: list[str],
         **kwargs,
     ) -> list[float]:
         metadata_list = kwargs.get("metadata", [])
+        num_generations = config.num_generations
         rewards = []
 
-        for i, (completion_group, prompt) in enumerate(zip(completions, prompts)):
-            # Each completion_group is a list of completions for one prompt;
-            # use the first completion for reward computation.
-            completion = completion_group[0] if completion_group else ""
-            meta = metadata_list[i % len(metadata_list)] if metadata_list else {}
+        for i, completion in enumerate(completions):
+            # Map flat completion index back to its source prompt
+            prompt_idx = i // num_generations
+            meta = metadata_list[prompt_idx % len(metadata_list)] if metadata_list else {}
             reward = compute_patch_reward(
                 completion,
                 meta,
                 config.sandbox_api_url,
             )
             rewards.append(reward)
-            logger.debug(f"  Completion {i}: reward={reward:.2f}")
+            logger.debug(f"  Completion {i} (prompt {prompt_idx}): reward={reward:.2f}")
 
         if rewards:
             logger.info(

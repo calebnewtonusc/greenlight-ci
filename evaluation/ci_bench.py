@@ -233,7 +233,6 @@ def run_inference(model, tokenizer, case: CIBenchCase) -> str:
         outputs = model.generate(
             **inputs,
             max_new_tokens=1024,
-            temperature=0.1,
             do_sample=False,
             pad_token_id=tokenizer.eos_token_id,
         )

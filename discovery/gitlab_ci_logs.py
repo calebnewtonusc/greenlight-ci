@@ -204,7 +204,9 @@ def find_fixing_pipeline(
     if not isinstance(successful, list):
         return None
 
-    # Find the first success that came after the failure
+    # Sort by id descending so the most recent successes are checked first;
+    # then find the first success that came after the failure
+    successful = sorted(successful, key=lambda p: p.get("id", 0), reverse=True)
     for pipeline in successful:
         if pipeline.get("id", 0) > failed_id:
             commit_sha = pipeline.get("sha", "")

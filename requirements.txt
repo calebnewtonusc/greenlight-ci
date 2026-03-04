@@ -29,6 +29,9 @@ pandas>=2.2.0
 jsonlines>=4.0.0
 datasketch>=1.6.4  # MinHash deduplication
 
+# Anthropic API
+anthropic>=0.40.0
+
 # GitHub API
 PyGithub>=2.3.0
 httpx>=0.27.0

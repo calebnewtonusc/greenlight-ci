@@ -17,7 +17,7 @@ services:
       - BASE_MODEL=Qwen/Qwen2.5-7B-Coder-Instruct
       - REDIS_URL=redis://redis:6379/0
     volumes:
-      - ./models:/models:ro
+      - ../checkpoints:/models:ro  # Mount trained model checkpoints (run: cp -r checkpoints/ deploy/checkpoints/ if needed)
       - /var/run/docker.sock:/var/run/docker.sock  # For sandbox execution
     depends_on:
       - redis
