@@ -17,6 +17,7 @@ from pathlib import Path
 import httpx
 import typer
 from loguru import logger
+from typing import cast
 
 from core.failure_taxonomy import (
     top_heuristic_class,
@@ -66,6 +67,7 @@ Output ONLY valid JSON matching this schema:
 def classify_with_claude(log_text: str, heuristic_hint: str = "") -> dict | None:
     """Classify a CI log using Claude API (Anthropic)."""
     import anthropic
+    from anthropic.types import TextBlock
 
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
@@ -83,7 +85,7 @@ Classify this CI failure."""
             system=CLASSIFICATION_SYSTEM_PROMPT,
             messages=[{"role": "user", "content": user_msg}],
         )
-        text = msg.content[0].text.strip()
+        text = cast(TextBlock, msg.content[0]).text.strip()
         # Extract JSON from response
         if text.startswith("{"):
             return json.loads(text)

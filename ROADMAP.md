@@ -59,7 +59,7 @@ Quarantine and flaky test elimination at the org level.
 - Automated isolation fix generation (mocks, retry decorators, test ordering fixes)
 - Quarantine registry — track which tests are quarantined and why
 - Flaky test dashboard (org-wide health view)
-- CI run time reduction tracking (fixing flakyness speeds CI)
+- CI run time reduction tracking (fixing flakiness speeds CI)
 
 ---
 

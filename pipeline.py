@@ -183,10 +183,10 @@ def main(
         table.add_column("Est. Hours", justify="right")
         for s in STAGES:
             table.add_row(
-                s["name"], s["phase"], s["description"], str(s["estimated_hours"])
+                str(s["name"]), str(s["phase"]), str(s["description"]), str(s["estimated_hours"])
             )
         console.print(table)
-        total = sum(s["estimated_hours"] for s in STAGES)
+        total = sum(float(s["estimated_hours"]) for s in STAGES)
         console.print(f"\nTotal estimated: {total:.1f} hours")
         return
 
@@ -204,7 +204,7 @@ def main(
         idx = names.index(from_stage)
         stages_to_run = STAGES[idx:]
 
-    total_hours = sum(s["estimated_hours"] for s in stages_to_run)
+    total_hours = sum(float(s["estimated_hours"]) for s in stages_to_run)
     console.print(
         f"\n[bold]GreenLight CI Pipeline[/bold] — {len(stages_to_run)} stages, ~{total_hours:.0f}h estimated"
     )

@@ -11,6 +11,7 @@ import json
 import os
 import random
 from pathlib import Path
+from typing import cast
 
 import httpx
 import typer
@@ -26,6 +27,7 @@ VLLM_API_KEY = os.environ.get("VLLM_API_KEY", "")
 
 # Module-level Anthropic client — created once, reused across all calls
 import anthropic as _anthropic  # noqa: E402
+from anthropic.types import TextBlock as _TextBlock  # noqa: E402
 
 _anthropic_client = (
     _anthropic.Anthropic(api_key=ANTHROPIC_API_KEY) if ANTHROPIC_API_KEY else None
